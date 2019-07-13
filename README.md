@@ -24,13 +24,11 @@ Like that it will be ensured that everything works ether way.
 
 ### Setup
 
-
-####Database configuration
-
 Before we can deploy anything we must setup connection strings for one or more database 
 servers that we are going to use.
 Currently supported are PostgreSQL, Oracle and Microsoft SQL Server.
 
+####Database configuration
 **Step 1**
 
 Open cmd/terminal and write dbconfig.py. If everything goes well you should see this options below. 
