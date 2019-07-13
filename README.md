@@ -31,16 +31,16 @@ Currently supported are PostgreSQL, Oracle and Microsoft SQL Server.
 
 **Step 1**
 
-Open cmd/terminal and write dbconfig.py. If everything goes well you should see this options below. 
+Open cmd/terminal and write  ```config.py```. If everything goes well you should see this options below. 
 It is possible that program asks for some additional information if you have more than one python interpreter 
 installed on your machine and you did not use virtual environment. But it will be required only once.
 
-![dbconfig](https://raw.githubusercontent.com/DraganMatesic/crawler_framework/master/images/dbconfig.PNG)
+![dbconfig](https://raw.githubusercontent.com/DraganMatesic/crawler_framework/master/images/config.PNG)
 
 **Step 2**
 
 Create all database connection's that you think you will use, from database where you will deploy crawler_framework 
-to database where you will store data etc. by entering option number 1.
+to database where you will store data etc. by selecting option number 1 and then database option number one.
 
-
+![dbconfig](https://raw.githubusercontent.com/DraganMatesic/crawler_framework/master/images/dbconfig.PNG)
 
