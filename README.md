@@ -40,7 +40,7 @@ installed on your machine and you did not use virtual environment. But it will b
 **Step 2**
 
 Create all database connection's that you think you will use, from database where you will deploy crawler_framework 
-to database where you will store data etc. by entering number 1.
+to database where you will store data etc. by entering option number 1.
 
 
 
