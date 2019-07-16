@@ -8,17 +8,16 @@ import cx_Oracle
 import sqlalchemy
 from sys import argv
 from datetime import datetime
+from sqlalchemy import create_engine
 from distutils.sysconfig import get_python_lib
+from core_framework.deploy import Deploy
 
 width = 50
 lines = '-' * width
 space = " " * round(width / 3.5)
 sys.path.insert(0, get_python_lib())
 
-try:
-    from settings import *
-except:
-    from core_framework.settings import *
+from core_framework.settings import *
 
 
 class DbAttrs:
@@ -71,6 +70,17 @@ def input_handler():
         return int(option)
 
 
+def db_con_list():
+    print("\nListing existing connections")
+    check_path = os.path.exists(database_config)
+    if check_path is True:
+        with open(database_config, 'rb') as fr:
+            data = pickle.load(fr)
+            return data
+    else:
+        raise FileNotFoundError(f"File does not exist on path: {database_config}")
+
+
 class Configuration():
     def __init__(self):
         self.commands()
@@ -84,7 +94,9 @@ class Configuration():
 
         if option == 1:
             DatabaseConfiguration()
-    
+
+        if option == 2:
+            Deployment()
 
 
 class DatabaseConfiguration():
@@ -98,16 +110,6 @@ class DatabaseConfiguration():
             os.remove(database_config)
             print("\nDeleted...")
         if check_path is False:
-            raise FileNotFoundError(f"File does not exist on path: {database_config}")
-
-    def db_con_list(self):
-        print("\nListing existing connections")
-        check_path = os.path.exists(database_config)
-        if check_path is True:
-            with open(database_config, 'rb') as fr:
-                data = pickle.load(fr)
-                return data
-        else:
             raise FileNotFoundError(f"File does not exist on path: {database_config}")
 
     def add_db_conn(self, db_type, username, password, databasename, servername=None, serverip=None, serverport=None,
@@ -326,7 +328,6 @@ class DatabaseConfiguration():
                 sys.stdout.write("\n> Is data above correct? [y/n]")
                 data_check_bool = self.bool_handler()
 
-                print(data_check_bool)
                 if data_check_bool is False:
                     if i == 4:
                         sys.stdout("\nMax retries exceeded. Program exiting.")
@@ -342,13 +343,13 @@ class DatabaseConfiguration():
             self.test_connection(connection_string, gathered_data)
 
         if option == 2:
-            connections = self.db_con_list().get('connections')
+            connections = db_con_list().get('connections')
             for k, v in connections.items():
                 print(k, v)
 
         if option == 3:
             op_con_list = {}
-            connections = self.db_con_list().get('connections')
+            connections = db_con_list().get('connections')
 
             for k, v in connections.items():
                 op_con_list.update({len(op_con_list): {k:v}})
@@ -407,7 +408,7 @@ class DatabaseConfiguration():
 
         if option == 4:
             op_con_list = {}
-            connections = self.db_con_list().get('connections')
+            connections = db_con_list().get('connections')
 
             for k, v in connections.items():
                 op_con_list.update({len(op_con_list): {k:v}})
@@ -434,8 +435,35 @@ class DatabaseConfiguration():
             self.delete_db_data()
 
 
-if __name__ == '__main__':
-    if len(argv) > 1:
-        DatabaseConfiguration()
+class Deployment:
+    """class for deploying crawler framework"""
+    def __init__(self):
+        """"""
+        self.commands()
+
+    def commands(self):
+        sys.stdout.write("\nChoose connection where to deploy framework\n")
+        op_con_list = {}
+        connections_orignal = db_con_list().get('connections')
+
+        connections = {k:{x:y for x,y in v.items() if x not in ['password', 'edit_date']} for k, v in connections_orignal.items()}
+        for k, v in connections.items():
+            op_con_list.update({len(op_con_list): {k: v}})
+
+        con_list = create_option_list(op_con_list, f'Select connection you want to edit\n{lines}')
+        write_line(txt=con_list)
+        while True:
+            option = input_handler()
+            if option not in op_con_list.keys():
+                write_line(6)
+                continue
+            break
+
+        conn_id = list(op_con_list.get(option).keys())[0]
+        deploy_stat = Deploy(conn_id).status()
+        if deploy_stat == 400:
+            sys.stdout.write(f"\nDeployment failed")
+            exit()
+
 
 

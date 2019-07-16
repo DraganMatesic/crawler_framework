@@ -6,6 +6,7 @@ from subprocess import Popen, PIPE, call
 
 python_path = r'C:\Users\{}\Documents\py_config.pkl'.format(getpass.getuser())
 
+
 def version_control():
     py_versions = {}
     sys.stdout.write('\nSelect Python3 version to use\n')
@@ -72,6 +73,7 @@ def version_control():
                 pickle.dump(py_data, fw)
             call(command)
         break
+
 
 def version_call():
     with open(python_path, 'rb') as fr:
