@@ -1,5 +1,4 @@
 from sqlalchemy import *
-from core_framework.sql import *
 from sqlalchemy import event, DDL
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -38,6 +37,16 @@ list_desc = [{"column_name": 'ip', "table_name": proxy_table, "column_descriptio
              {"column_name": 'date_closed', "table_name": tor_table, "column_description": "date and time from when this tor is not functional"},
 ]
 
+
+def ora_trigger(trigger, table, sequence, when=1):
+    whens = {1: 'before insert', 2: 'before update'}
+    sql = f'''create TRIGGER {trigger}
+    {whens.get(when)} ON {table}
+    FOR EACH ROW
+    BEGIN
+    select {sequence}.nextval into :new.id from dual;
+    END;'''
+    return sql
 
 class TableDescriptionsAll:
     __tablename__ = column_description_table
