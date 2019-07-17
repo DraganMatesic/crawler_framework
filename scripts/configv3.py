@@ -384,7 +384,7 @@ class DatabaseConfiguration():
             connection_string = string.format(**new_data)
             test_stat = self.test_connection(connection_string, new_data, edit=True)
             if test_stat != 400:
-                not_for_sha = ['edit_date']
+                not_for_sha = ['edit_date', 'deploy']
                 sha_instance = {k:v for k,v in new_data.items() if k not in not_for_sha}
                 sha = hashlib.sha3_256(str(sha_instance).encode()).hexdigest()
                 new_data.update({"edit_date": datetime.now().strftime("%Y-%m-%d %H:%M:S")})
@@ -444,7 +444,8 @@ class Deployment:
     def commands(self):
         sys.stdout.write("\nChoose connection where to deploy framework\n")
         op_con_list = {}
-        connections_orignal = db_con_list().get('connections')
+        data = db_con_list()
+        connections_orignal = data.get('connections')
 
         connections = {k:{x:y for x,y in v.items() if x not in ['password', 'edit_date']} for k, v in connections_orignal.items()}
         for k, v in connections.items():
@@ -459,12 +460,18 @@ class Deployment:
                 continue
             break
 
-        conn_id = list(op_con_list.get(option).keys())[0]
-        deploy_stat = Deploy(conn_id).status()
+        conection_id = list(op_con_list.get(option).keys())[0]
+        deploy_stat = Deploy(conection_id).status()
 
         if deploy_stat == 400:
             sys.stdout.write(f"\nDeployment failed")
             exit()
+
+        conn = connections_orignal.get(conection_id)
+        conn.update({'deploy': True})
+
+        with open(database_config, 'wb') as fw:
+            pickle.dump(data, fw)
 
 
 
