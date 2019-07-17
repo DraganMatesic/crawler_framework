@@ -11,6 +11,7 @@ BasePstg = declarative_base()
 tor_table = "tor_list"
 proxy_table = "proxy_list"
 column_description_table = 'tablecol_descriptor'
+proxy_usage_table = 'proxy_usage'
 
 list_desc = [{"column_name": 'ip', "table_name": proxy_table, "column_description": "proxy ip we are going to use"},
              {"column_name": 'port', "table_name": proxy_table, "column_description": "proxy port that is open for above ip"},
@@ -35,6 +36,13 @@ list_desc = [{"column_name": 'ip', "table_name": proxy_table, "column_descriptio
              {"column_name": 'data_dir', "table_name": tor_table, "column_description": "path on host machine where tor data file can be found"},
              {"column_name": 'identity_time', "table_name": tor_table, "column_description": "last time identity of tor has been changed"},
              {"column_name": 'date_closed', "table_name": tor_table, "column_description": "date and time from when this tor is not functional"},
+
+             {"column_name": 'thread_number', "table_name": proxy_usage_table, "column_description": "thread number or some process id that is using current proxy"},
+             {"column_name": 'program_name', "table_name": proxy_usage_table, "column_description": "name of program that is using current proxy"},
+             {"column_name": 'proxy_id', "table_name": proxy_usage_table, "column_description": "combination of letter and primary key in table [ID] P-1 is ID from proxy_list table T-1 is ID from tor_list table"},
+             {"column_name": 'base_domain', "table_name": proxy_usage_table, "column_description": "base domain name so that the proxy switch doesn't use same proxy for the same domain in different programs if user specify that"},
+             {"column_name": 'proxy_ip', "table_name": proxy_usage_table, "column_description": "proxy ip that is being used if we are using datacenter proxy id will be the same but datacenter can provide differnet ip to induvidual thread"},
+             {"column_name": 'date_created', "table_name": proxy_usage_table, "column_description": "date and time when proxy started to being used"},
 ]
 
 
@@ -47,6 +55,33 @@ def ora_trigger(trigger, table, sequence, when=1):
     select {sequence}.nextval into :new.id from dual;
     END;'''
     return sql
+
+
+class ProxyUsageAll:
+    __tablename__ = proxy_usage_table
+
+    thread_number = Column(Integer())   # thread number or some process id that is using current proxy
+    program_name = Column(String(1000))  # name of program that is using current proxy
+    proxy_id = Column(String(100))  # combination of letter and primary key in table [ID] P-1 is ID from proxy_list table T-1 is ID from tor_list table
+    base_domain = Column(String(1000))  # base domain name so that proxy switch doesn't use same proxy for same domain in different programs if user doesn't want that
+    proxy_ip = Column(String(100))  # proxy ip that is being used if we are using data center proxy id will be the same but data center can provide different ip to induvidual thread
+    date_created = Column(DateTime, server_default=func.now())  # date and time when proxy started to being used
+
+
+class ProxyUsageOra(BaseOra, ProxyUsageAll):
+    id = Column('id', Integer, Sequence('proxyusg_id_seq'), primary_key=True)
+
+
+class ProxyUsageMS(BaseMs, ProxyUsageAll):
+    id = Column('id', Integer, primary_key=True)
+
+
+class ProxyUsagePstg(BasePstg, ProxyUsageAll):
+    tablecol_id_seq = Sequence('proxyusg_id_seq', metadata=BasePstg.metadata)
+    id = Column(
+        Integer, tablecol_id_seq,
+        server_default=tablecol_id_seq.next_value(), primary_key=True)
+
 
 class TableDescriptionsAll:
     __tablename__ = column_description_table

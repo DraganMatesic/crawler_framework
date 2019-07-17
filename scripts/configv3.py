@@ -461,9 +461,11 @@ class Deployment:
 
         conn_id = list(op_con_list.get(option).keys())[0]
         deploy_stat = Deploy(conn_id).status()
+
         if deploy_stat == 400:
             sys.stdout.write(f"\nDeployment failed")
             exit()
+
 
 
 
