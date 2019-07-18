@@ -13,6 +13,6 @@ setup(name='crawler_framework',
       license='MIT',
       packages=['core_framework'],
       zip_safe=False,
-      install_requires=['SQLAlchemy', 'pandas', 'requests', 'bs4', 'stem', 'pymssql', 'pyodbc', 'stem', 'psycopg2', 'cx_oracle'],
+      install_requires=['SQLAlchemy', 'pandas', 'requests', 'bs4', 'stem', 'pymssql', 'pyodbc', 'stem', 'psycopg2', 'cx_oracle', 'proxybroker'],
       scripts=['scripts/config.py', 'scripts/configv3.py']
       )
