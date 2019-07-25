@@ -22,8 +22,20 @@ class DbEngine:
         self.db_type = None
         self.lib = None
 
-    def connect(self, conn_id, **kwargs):
+    def connect(self, conn_id=None, **kwargs):
         connections = db_con_list()
+
+        if conn_id is None:
+            print("conn_id is None searching for db deploy string")
+            conn_data = connections.get('connections')
+            for k, v in conn_data.items():
+                if v.get('deploy') is True:
+                    conn_id = k
+                    break
+
+        if conn_id is None:
+            raise ConnectionError("Program can't find any db deploy string in that case conn_id must be specified")
+
         if connections:
             connection = connections.get('connections').get(conn_id)
             self.db_type = connection.get('db_type')
@@ -38,4 +50,3 @@ class DbEngine:
                 sys.stdout.write(f"\nCant connect on specified connection. {str(e)}")
                 return 400
             return self.engine
-

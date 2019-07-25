@@ -50,8 +50,10 @@ to database where you will store data etc. by selecting option number 1 and then
 ## Deploying framework
 Open cmd/terminal and write  ```config.py```. Select option 2 (Deploy framework) and then select option from 
 the list of connections you created that is going to be used for deployment. This will deploy table structure in selected database 
-on selected server connection.
+on selected server connection. In our case we will deploy it on PostgreSQL localhost server.
 
+## Starting proxy server
+Proxy server is multifunctional program that acquires new proxies(crawlers), test proxies, creates tor network etc.
  
  
 

@@ -3,7 +3,7 @@ import os
 import json
 import pickle
 import requests
-from datetime import  datetime
+from datetime import datetime
 from core_framework.settings import *
 
 
@@ -23,15 +23,28 @@ def get():
         with open(ua_data, 'rb') as fr:
             data = pickle.load(fr)
             last_update = data.get('last_update')
+            diff = datetime.now() - last_update
+            day_diff = diff.days
 
+        if day_diff > 30:
+            new_data = crawl()
+            if new_data != 500:
+                with open(ua_data, 'wb') as fw:
+                    new_data.update({'last_update': datetime.now()})
+                    pickle.dump(new_data, fw)
     else:
         new_data = crawl()
         if new_data != 500:
             with open(ua_data, 'wb') as fw:
-                data = pickle.load(fw)
-                data.update({'last_update': datetime.now()})
-                pickle.dump(data, fw)
+                new_data.update({'last_update': datetime.now()})
+                pickle.dump(new_data, fw)
 
+
+def load():
+    get()
+    with open(ua_data, 'rb') as fr:
+        data = pickle.load(fr)
+        return {'User-Agent': data.get('UserAgent')}
 
 
 
