@@ -1,124 +1,130 @@
 """Proxy server runs constantly checking existing proxies and adding new ones"""
+import pickle
 import requests
+from time import sleep
 from random import shuffle
+import multiprocessing.pool
+from datetime import datetime
 import multiprocessing as mp
 from core_framework.settings import *
 from core_framework.crawlers import *
-from core_framework.thread_pool import ThreadPool
+from core_framework.db_engine import DbEngine
+
+
+
+def db_con_list():
+    check_path = os.path.exists(database_config)
+    if check_path is True:
+        with open(database_config, 'rb') as fr:
+            data = pickle.load(fr)
+            return data
+    else:
+        raise FileNotFoundError(f"File does not exist on path: {database_config}")
+
+
+
+
+class NoDaemonProcess(mp.Process):
+    def _get_daemon(self):
+        return False
+    def _set_daemon(self, value):
+        pass
+    daemon = property(_get_daemon, _set_daemon)
+
+
+class MyPool(multiprocessing.pool.Pool):
+    Process = NoDaemonProcess
 
 
 class Provider:
-    def __init__(self, url, parser, crawler):
+    def __init__(self, url, parser, crawler, cookies=None):
         self.url, self.parser, self.crawler = url, parser, crawler
 
 
 class Providers:
     def classic(self):
-        return [Provider('http://www.proxylists.net/', ParserType1, CrawlerType1),
-                'http://ipaddress.com/proxy-list/',
-                'https://www.sslproxies.org/',
-                'https://freshfreeproxylist.wordpress.com/',
-                'http://proxytime.ru/http',
-                'https://free-proxy-list.net/',
-                'https://us-proxy.org/',
-                'http://fineproxy.org/eng/fresh-proxies/',
-                'http://www.httptunnel.ge/ProxyListForFree.aspx',
-                'http://cn-proxy.com/',
-                'https://hugeproxies.com/home/',
-                'http://proxy.rufey.ru/',
-                'https://geekelectronics.org/my-servisy/proxy',
-                'http://pubproxy.com/api/proxy?limit=20&format=txt'
+        return [
+            # Provider('http://www.proxylists.net/', ParserType1, ClassicProxy),
+            # Provider('https://www.sslproxies.org/', ParserType1, ClassicProxy),
+            # Provider('https://freshfreeproxylist.wordpress.com/', ParserType1, ClassicProxy),
+            # Provider('http://proxytime.ru/http', ParserType1, ClassicProxy),
+            # Provider('https://free-proxy-list.net/', ParserType1, ClassicProxy),
+            # Provider('https://us-proxy.org/', ParserType1, ClassicProxy),
+            # Provider('https://t.me/s/proxiesfine', ParserType1, ClassicProxy),
+            # Provider('http://www.httptunnel.ge/ProxyListForFree.aspx', ParserType1, ClassicProxy),
+            # Provider('http://cn-proxy.com/', ParserType1, ClassicProxy),
+            Provider('https://hugeproxies.com/home/', ParserType1, ClassicProxy),
+            Provider('http://pubproxy.com/api/proxy?limit=200&format=txt', ParserType1, ClassicProxy),
+            # Provider('http://ipaddress.com/proxy-list/', ParserType1, ClassicProxy), #  drukčiji parser ili prilagodba klasičnog
                 ]
+
 
 class ProxyServer:
     def __init__(self):
         self.my_ip = requests.get(ip_checker).content
 
-    def check_ip(self, data, **kwargs):
-        class ProxyStats:
-            bad_http = None
-            bad_https = None
-
-        ip, port = data
-        protocol_list = list()
-        thread_number = kwargs.get('Thread')
-
-        ses = requests.session()
-        ses.headers.update(user_agent.load())
-        ses.proxies = {'http': f'{ip}:{port}', 'https': f'{ip}:{port}'}
-
-        proxy_stats = ProxyStats
-        protocol_checks = ['http', 'https']
-
-        for protocol in protocol_checks:
-            tries = 0
-            protocol_judges = judges.get(protocol)
-            shuffle(protocol_judges)
-            for judge in protocol_judges:
-                try:
-                    r = ses.get(judge, timeout=10)
-                    html = r.content
-                    if re.search(self.my_ip, html, re.MULTILINE | re.DOTALL) is not None:
-                        setattr(proxy_stats, f'bad_{protocol}', True)
-                    if re.search(self.my_ip, html, re.MULTILINE | re.DOTALL) is None:
-                        setattr(proxy_stats, f'bad_{protocol}', False)
-                        if protocol not in protocol_list:
-                            protocol_list.append(protocol)
-                    protocol_stat = getattr(proxy_stats, f'bad_{protocol}')
-                    if protocol_stat is False:
-                        break
-                except Exception as e:
-                    tries += 1
-                    if tries >= max_judges:
-                        break
-                    continue
-
-        bad_proxy = None
-        bad_http = proxy_stats.bad_http
-        bad_https = proxy_stats.bad_https
-
-        if (bad_http is True and bad_https is True) or (bad_http is None and bad_https is None):
-            bad_proxy = True
-        if bad_http is False or bad_https is False:
-            bad_proxy = False
-
-        protocols = ';'.join(protocol_list)
-        print(thread_number, "- bad_proxy: ", bad_proxy, data, bad_http, bad_https, protocols)
-
-        # if proxy is bad than we want to record that proxy so we don't check it again
-
-        # if proxy is good we want to safe that proxy so we can check it again later
-
-    def providers(self, data):
-        pid = mp.process.current_process().pid
+    @staticmethod
+    def providers(data):
         if isinstance(data, Provider):
             crawler = data.crawler
-            crawler = crawler(data, 1)
+            crawler = crawler(data, 5)
+
+            start = datetime.now()
             ips = crawler.start()
 
-            proxies = list()
-            for proxy in ips:
-                if proxy not in proxies:
-                    proxies.append(proxy)
+            ips_clean = []
+            for ip in ips:
+                if ip not in ips_clean:
+                    ips_clean.append(ip)
 
-            # we are using thread pool since requests dont support async and aiohttp
-            # still doesn't support https proxies
-            t_pool = ThreadPool(20)
-            t_pool.map(self.check_ip, ips)
-            t_pool.wait_completion()
+            diff = datetime.now() - start
+            return (data.url, round(diff.total_seconds()), ips_clean)
 
     def gather(self):
         providers = Providers()
         provider_data = providers.classic()
-        pool = mp.Pool(5)
-        pool.map(self.providers, provider_data)
+        pool = mp.Pool(2)
+        crawled_data = pool.map(self.providers, provider_data)
+        pool.close()
+        pool.join()
+
+        print("======="*25)
+        print("Final data")
+
+        for data in crawled_data:
+            webpage, crawling_time, proxies = data
+            print(webpage, crawling_time, proxies)
+
+    def pull_db_data(self):
+        # get server connection string where framework is deployed
+        deploy_db_id = None
+        conn_strings= db_con_list().get('connections')
+        for id, data in conn_strings.items():
+            if 'deploy' in data.keys():
+                deploy_db_id = id
+        if deploy_db_id is None:
+            raise FileExistsError(f"cant find deploy connection string in {database_config}")
+
+    # def ip_checker(self):
+    #     while True:
+    #         print("priter", 1)
+    #         sleep(1)
+
+    def task_handler(self, task):
+        task()
+
+    def run(self):
+        # self.pull_db_data()
+        tasks = [self.gather]
+        pool = MyPool(4)
+        pool.map(self.task_handler, tasks)
+        pool.close()
+        pool.join()
 
 
-# if __name__ == '__main__':
-#     api = ProxyServer()
-#     api.gather()
-
-
-
+if __name__ == '__main__':
+    # while True:
+        api = ProxyServer()
+        api.run()
 
 

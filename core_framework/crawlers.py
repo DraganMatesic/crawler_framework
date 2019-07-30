@@ -7,8 +7,10 @@ from lxml import html as lh
 from core_framework.parsers import *
 from core_framework import user_agent
 
+import sys
 
-class CrawlerType1:
+
+class ClassicProxy:
 
     def __init__(self, provider_data, depth, max_conn=200):
         self.parser_class = provider_data.parser
@@ -19,15 +21,16 @@ class CrawlerType1:
         self.headers = user_agent.load()
         self.conn_limiter = asyncio.BoundedSemaphore(max_conn)
         self.session = aiohttp.ClientSession(headers=self.headers)
+        self.my_ip = b'212.92.216.233'
 
     def start(self):
         future = asyncio.Task(self.crawl())
         loop = asyncio.get_event_loop()
         loop.run_until_complete(future)
-        loop.close()
         result = future.result()
         return result
 
+    # ============= GATHER PROXIES ===================
     async def crawl(self):
         urls = [self.start_url]
         all_proxies = list()
@@ -39,6 +42,7 @@ class CrawlerType1:
                 proxies = parser.find_ips(data)
                 proxies = [proxy for proxy in proxies if proxy not in all_proxies]
                 all_proxies.extend(proxies)
+                # add new found urls with base name
                 urls.extend(found_urls)
 
         await self.session.close()
@@ -56,7 +60,7 @@ class CrawlerType1:
             try:
                 results.append((await future))
             except Exception as e:
-                logging.warning('Exception in CrawlerType1.gather_urls: {}'.format(e))
+                logging.warning(f'Exception in {self.__name__}.gather_urls: {str(e)}')
         return results
 
     async def request_async(self, url):
@@ -73,11 +77,12 @@ class CrawlerType1:
         stdout.write(f'\rtotal_urls for {self.start_url}: {len(self.parsed_urls)}')
         async with self.conn_limiter:
             try:
-                async with self.session.get(url, timeout=30) as response:
+                async with self.session.get(url, timeout=60) as response:
                     html = await response.read()
                     return html
             except Exception as e:
-                logging.warning('Exception at CrawlerType1.http_request: {}'.format(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                logging.warning(f'Exception at {self.__name__}.http_request| ErrorType: {exc_type}, ErrorLine:{exc_tb.tb_lineno}, ErrorDesc:{str(e)}')
 
     def extract_urls(self, html):
         """Parses html doc to gather other urls with same base_url as the webpage"""
