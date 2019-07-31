@@ -50,3 +50,5 @@ class DbEngine:
                 sys.stdout.write(f"\nCant connect on specified connection. {str(e)}")
                 return 400
             return self.engine
+
+    # def select(self):

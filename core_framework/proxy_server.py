@@ -1,5 +1,6 @@
 """Proxy server runs constantly checking existing proxies and adding new ones"""
 import pickle
+import hashlib
 import requests
 from time import sleep
 from random import shuffle
@@ -44,15 +45,15 @@ class Provider:
 class Providers:
     def classic(self):
         return [
-            # Provider('http://www.proxylists.net/', ParserType1, ClassicProxy),
-            # Provider('https://www.sslproxies.org/', ParserType1, ClassicProxy),
-            # Provider('https://freshfreeproxylist.wordpress.com/', ParserType1, ClassicProxy),
-            # Provider('http://proxytime.ru/http', ParserType1, ClassicProxy),
-            # Provider('https://free-proxy-list.net/', ParserType1, ClassicProxy),
-            # Provider('https://us-proxy.org/', ParserType1, ClassicProxy),
-            # Provider('https://t.me/s/proxiesfine', ParserType1, ClassicProxy),
-            # Provider('http://www.httptunnel.ge/ProxyListForFree.aspx', ParserType1, ClassicProxy),
-            # Provider('http://cn-proxy.com/', ParserType1, ClassicProxy),
+            Provider('http://www.proxylists.net/', ParserType1, ClassicProxy),
+            Provider('https://www.sslproxies.org/', ParserType1, ClassicProxy),
+            Provider('https://freshfreeproxylist.wordpress.com/', ParserType1, ClassicProxy),
+            Provider('http://proxytime.ru/http', ParserType1, ClassicProxy),
+            Provider('https://free-proxy-list.net/', ParserType1, ClassicProxy),
+            Provider('https://us-proxy.org/', ParserType1, ClassicProxy),
+            Provider('https://t.me/s/proxiesfine', ParserType1, ClassicProxy),
+            Provider('http://www.httptunnel.ge/ProxyListForFree.aspx', ParserType1, ClassicProxy),
+            Provider('http://cn-proxy.com/', ParserType1, ClassicProxy),
             Provider('https://hugeproxies.com/home/', ParserType1, ClassicProxy),
             Provider('http://pubproxy.com/api/proxy?limit=200&format=txt', ParserType1, ClassicProxy),
             # Provider('http://ipaddress.com/proxy-list/', ParserType1, ClassicProxy), #  drukčiji parser ili prilagodba klasičnog
@@ -66,10 +67,13 @@ class ProxyServer:
     @staticmethod
     def providers(data):
         if isinstance(data, Provider):
-            crawler = data.crawler
-            crawler = crawler(data, 5)
-
             start = datetime.now()
+            process_id = hashlib.sha3_256(str(start).encode()).hexdigest()
+            log = {'start_time': start, 'webpage': data.url, 'proc_id': process_id}
+
+            crawler = data.crawler
+            crawler = crawler(data, 5, log=log)
+
             ips = crawler.start()
 
             ips_clean = []
@@ -77,23 +81,35 @@ class ProxyServer:
                 if ip not in ips_clean:
                     ips_clean.append(ip)
 
-            diff = datetime.now() - start
-            return (data.url, round(diff.total_seconds()), ips_clean)
+            end = datetime.now()
+            diff = end - start
+            duration = round(diff.total_seconds())
+
+            crawler.log.update({'duration': duration, 'end_time': end})
+
+
+            return crawler.log, crawler.error_log, data.url, duration, ips_clean
 
     def gather(self):
         providers = Providers()
         provider_data = providers.classic()
-        pool = mp.Pool(2)
+        pool = mp.Pool(4)
         crawled_data = pool.map(self.providers, provider_data)
         pool.close()
         pool.join()
 
-        print("======="*25)
         print("Final data")
-
         for data in crawled_data:
-            webpage, crawling_time, proxies = data
+            log, error_log, webpage, crawling_time, proxies = data
             print(webpage, crawling_time, proxies)
+
+            print("log",log)
+            print("error_log", error_log)
+            for error, times in error_log.items():
+                print(error, times)
+            print("====="*20)
+
+
 
     def pull_db_data(self):
         # get server connection string where framework is deployed

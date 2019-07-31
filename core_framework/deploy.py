@@ -12,6 +12,7 @@ tor_table = "tor_list"
 proxy_table = "proxy_list"
 column_description_table = 'tablecol_descriptor'
 proxy_usage_table = 'proxy_usage'
+proxy_log_table = 'proxy_log'
 
 list_desc = [{"column_name": 'ip', "table_name": proxy_table, "column_description": "proxy ip we are going to use"},
              {"column_name": 'port', "table_name": proxy_table, "column_description": "proxy port that is open for above ip"},
@@ -55,6 +56,16 @@ def ora_trigger(trigger, table, sequence, when=1):
     select {sequence}.nextval into :new.id from dual;
     END;'''
     return sql
+
+
+class ProxyLog:
+    """table ontains all records how did crawling finished for specific webpage"""
+    __tablename__ = proxy_log_table
+
+    proc_id = Column(String(64))  # it is has value of datetime that serves as unique id for that crawling
+    start_time = Column(DateTime)  # time when some webpage started with crawling
+    step_name = Column(String(1500))  # name of the step in program
+
 
 
 class ProxyUsageAll:
@@ -108,7 +119,6 @@ class TableDescriptionPstg(BasePstg, TableDescriptionsAll):
 
 class ProxyListAll:
     __tablename__ = proxy_table
-    # __table_args__ = {'extend_existing': True}
 
     ip = Column(String(64))  # proxy ip we are going to use
     port = Column(Integer)  # proxy port that is open for above ip
@@ -116,7 +126,7 @@ class ProxyListAll:
     protocols = Column(String(1000))  # protocols that are available are separated by semicolon (http;https;socks5...)
     proxy_type = Column(String(1000), server_default='public')  # proxy type can be public, vpn, private, residential, dedicated, shared, data center etc..
     last_checked = Column(DateTime)  # date and time when this proxy was checked is it functional and lvl of anonymity
-    anonymity = Column(Integer(), server_default='0')   # after check is done it will get anonymity rating 0 = elite, 1 = anonymous, 2 = transparent
+    anonymity = Column(Integer(), server_default='0')   # after check is done it will get anonymity rating 0 = unprocessed, 1 = anonymous, 2 = transparent, 3 = elite
     username = Column(String(1000))  # username for connection on private proxy/VPN
     password = Column(String(1000))  # password for connection on private proxy/VPN
     proxy_source = Column(String(4000))  # name of proxy source can be scraping web page url, shot url to data center like 'zproxy.lum-superproxy.io'
@@ -152,7 +162,7 @@ class TorListAll:
     pid_file = Column(String(1000))  # path on host machine where pid file can be found
     data_dir = Column(String(1000))  # path on host machine where tor data file can be found
     identity_time = Column(DateTime)  # last time identity of tor has been changed
-    dat_pro = Column(DateTime)
+    archive = Column(DateTime)  # when the record was closed
 
 
 class TorListOra(BaseOra, TorListAll):
