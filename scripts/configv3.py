@@ -81,11 +81,19 @@ def db_con_list():
         raise FileNotFoundError(f"File does not exist on path: {database_config}")
 
 
-class Configuration():
+def create_framework_folders():
+    if not os.path.exists(framework_folder):
+        os.mkdir(framework_folder)
+    if not os.path.exists(database_log_folder):
+        os.mkdir(database_log_folder)
+
+class Configuration:
     def __init__(self):
+        create_framework_folders()
         self.commands()
         
     def commands(self):
+
         master_options ={1: 'Database configuration', 2: 'Deploy framework'}
 
         master_list = create_option_list(master_options, 'SELECT OPTION:')

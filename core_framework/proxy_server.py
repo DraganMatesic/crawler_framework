@@ -86,8 +86,6 @@ class ProxyServer:
             duration = round(diff.total_seconds())
 
             crawler.log.update({'duration': duration, 'end_time': end})
-
-
             return crawler.log, crawler.error_log, data.url, duration, ips_clean
 
     def gather(self):

@@ -1,9 +1,10 @@
 import os
 import getpass
 
-
-database_config = r'C:\Users\{}\Documents\db_config.pkl'.format(getpass.getuser())
-ua_data = r'C:\Users\{}\Documents\user_agent.pkl'.format(getpass.getuser())
+framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
+database_config = r'{}\db_config.pkl'.format(framework_folder)
+ua_data = r'{}\user_agent.pkl'.format(framework_folder)
+database_log_folder = r'{}\logs'.format(framework_folder)
 
 
 # ---------------------------------------------------------------------------

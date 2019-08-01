@@ -4,7 +4,8 @@ import pickle
 import getpass
 from subprocess import Popen, PIPE, call
 
-python_path = r'C:\Users\{}\Documents\py_config.pkl'.format(getpass.getuser())
+framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
+python_path = r'{}\py_config.pkl'.format(framework_folder)
 
 
 def version_control():
