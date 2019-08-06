@@ -108,7 +108,6 @@ class ProxyServer:
             print("====="*20)
 
 
-
     def pull_db_data(self):
         # get server connection string where framework is deployed
         deploy_db_id = None

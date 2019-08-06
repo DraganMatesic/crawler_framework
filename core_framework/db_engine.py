@@ -1,7 +1,9 @@
 import os
 import sys
+import pyodbc
 import pickle
 import logging
+import hashlib
 import pandas as pd
 from time import sleep
 from random import randrange
@@ -192,29 +194,331 @@ class DbEngine:
                 sleep(randrange(5, 20))
                 self.connect()
                 continue
+
             except Exception as e:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 break
 
-    def insert(self):
-        pass
+    @staticmethod
+    def order_data(data):
+        """method converts dataframe row to text and sorts characters alphabetically"""
+        data = ''.join(sorted(''.join(data).lower()))
+        return data
 
-    def delete(self):
-        pass
+    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False):
+        """
+        :param str tablename:
+        :param dict data:
+        :param dict filters:
+        :param str schema:
+        :param bool insert:
+        :param bool update:
+        :param list on:
+        Description:
+            usage: Compartment of web data with current database data.. insert of new and archive of old data.
+            data: dictionary where keys are int and values are dictionary that represents single row of data
+            filter: dictionary that contains data that will filter database table data that is needed to compare
+            schema: if schema is needed to be specified
+            insert: if insert is False no data will be inserted
+            update: if update is False no data will be updated/closed
+            on: what columns it will compare default is all cols
+            """
 
-    def merge(self):
-        pass
+        for tries in range(5):
+            try:
+                class DbTable(object):
+                    pass
 
-    def proc(self):
-        pass
+                filters = {k.lower(): v for k, v in filters.items()}
+                # gathering table information from database based on table name
+                # aka reflecting database object
+                engine = self.engine
+                metadata = MetaData(bind=engine)
+                table = Table(tablename, metadata, autoload=True, quote=True, schema=schema)
+                self.lower(table)
 
+                # loading gathered table information to sqlalchemy object
+                mapper(DbTable, table)
+                DbTable.__getattribute__(DbTable, self.primary_key)
+
+                # selecting data from database based on filters
+                session = sessionmaker(bind=engine)()
+                results = session.query(DbTable).filter_by(**filters).statement
+
+                # convert data to pandas object
+                db_df = pd.read_sql(results, engine)
+                db_df.columns = map(str.lower, db_df.columns)
+
+                # convert dictionary data to pandas data frame object
+                web_df = pd.DataFrame.from_dict(data, orient='index')
+                web_df = web_df.where((pd.notnull(web_df)), None)
+                # change df column names to lower_letters
+                web_df.columns = map(str.lower, web_df.columns)
+
+                # calculate sha value and append to df
+                web_df['sha'] = [hashlib.sha3_256(str(self.order_data(row)).encode()).hexdigest() for row in web_df.values]
+                web_columns = list(web_df.columns)
+
+                # +========  COMPARE DATA ========+
+                # if there is already existing data in database compare two tables based on their sha has value column
+                if db_df.empty is False:
+                    # converting all values that are NaT or NaN to None
+                    db_df = db_df.where((pd.notnull(db_df)), None)
+                    # default coparation is done over sha column unless overridden
+                    if on is False:
+                        on = ['sha']
+
+                    # find all record id's in database frame that does not exist in web frame
+                    # +------------ CLOSE ------------+ "
+                    close_ids = list()
+                    df_all = db_df.merge(web_df.drop_duplicates(), on=on, how='left', indicator=True)
+                    close_rows = df_all[df_all['_merge'].isin(['left_only'])]
+
+                    # if there is row ids that need to be closed and update is True append ids
+                    if not close_rows.empty and update is True:
+                        close_records = close_rows.to_dict('records')
+                        for close_record in close_records:
+                            rowid = close_record.get(self.primary_key)
+                            close_ids.append(rowid)
+
+                    # find all that does not exist in database frame and exist in web frame
+                    # +------------  INSERT ------------+ "
+                    # if insert is True compare data
+                    if insert is True:
+                        web_new = web_df.merge(db_df.drop_duplicates(), on=on, how='left', indicator=True, suffixes=('','_y'))
+
+                        # removing pandas calculation columns
+                        web_new = web_new[web_new['_merge'].isin(['left_only'])]
+                        web_new = web_new[web_columns]
+                        web_new = web_new.where((pd.notnull(web_new)), None)
+
+                        # if there is new data that doesn't exist in database insert it
+                        if web_new.empty is False:
+                            insert_data = web_new.to_dict('records')
+                            session.bulk_insert_mappings(DbTable, insert_data)
+
+                    # if close id's is not empty
+                    if close_ids:
+                        session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
+                            .update({self.archive_date: datetime.now()}, synchronize_session='fetch')
+
+                # if there is no prexisting data in database then insert without comparing
+                elif insert is True:
+                    insert_data = web_df.to_dict('records')
+                    session.bulk_insert_mappings(DbTable, insert_data)
+
+                session.commit()
+                session.flush()
+                break
+
+            except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
+                sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
+                print(traceback.extract_stack())
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                sleep(randrange(5, 20))
+                self.connect()
+                continue
+
+            except Exception as e:
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                break
+
+    def insert(self, tablename, data, schema=None):
+        """
+        Method is used for inserting records in specified table
+        :param str tablename:
+        :param dict data:
+        :return:
+        """
+        for tries in range(5):
+            try:
+                class DbTable(object):
+                    pass
+
+                engine = self.engine
+                metadata = MetaData(bind=engine)
+                table = Table(tablename, metadata, autoload=True, quote=True, schema=schema)
+                self.lower(table)
+
+                # loading gathered table information to sqlalchemy object
+                mapper(DbTable, table)
+                DbTable.__getattribute__(DbTable, self.primary_key)
+
+                data_df = pd.DataFrame.from_dict(data, orient='index')
+                data_df = data_df.where((pd.notnull(data_df)), None)
+                # change df column names to lower_letters
+                data_df.columns = map(str.lower, data_df.columns)
+
+                # calculate sha value and append to df
+                data_df['sha'] = [hashlib.sha3_256(str(self.order_data(row)).encode()).hexdigest() for row in data_df.values]
+                insert_data = data_df.to_dict('records')
+
+                session = sessionmaker(bind=engine)()
+                session.bulk_insert_mappings(DbTable, insert_data)
+                session.commit()
+                session.flush()
+                break
+
+            except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
+                sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
+                print(traceback.extract_stack())
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                sleep(randrange(5, 20))
+                self.connect()
+                continue
+
+            except Exception as e:
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                break
+
+    def import_data(self, conn_id, tablename_old, tablename_new):
+        """
+        imports data from one database to another
+        :param int conn_id:
+        :param str tablename_old:
+        :param str tablename_new:
+
+        conn_id: conn_id of database from where we want to export data
+        tablename_old: name of table where data for exporting is
+        tablename_new: name of table where exported data will be imported
+        """
+        raise NotImplementedError
+
+    def delete(self, tablename, filters=None, schema=None):
+        """
+        deletes records from selected table.
+        :param str tablename:
+        :param list isin:
+        """
+        for tries in range(5):
+            try:
+                class DbTable(object):
+                    pass
+
+                filters = {k.lower(): v for k, v in filters.items()}
+
+                engine = self.engine
+                metadata = MetaData(engine)
+                table = Table(tablename, metadata, autoload=True, schema=schema)
+                mapper(DbTable, table)
+                session = sessionmaker(bind=engine)()
+
+                filter_and, or_groups = [], []
+                if 'or' in filters.keys():
+                    or_data = filters.get('or').copy()
+                    filters.pop('or')
+                    for od in or_data:
+                        or_groups.append(and_(*self.and_connstruct(DbTable, od)))
+                        pass
+
+                filter_and = self.and_connstruct(DbTable, filters)
+                # for checking statments construct uncoment
+                print(session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).statement)
+                n_rows_deleted = session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).delete(synchronize_session='fetch')
+                session.commit()
+                break
+
+            except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
+                sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
+                print(traceback.extract_stack())
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                sleep(randrange(5, 20))
+                self.connect()
+                continue
+
+            except Exception as e:
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                break
+
+    def proc(self, procname, params=None, response=False, one=False):
+        """
+        calls procedure with return or without
+        :param str procname:
+        :param params:
+        :param bool response:
+        :param bool one:
+
+        procname: name of the procedure we are calling
+        params: can be dictionary or list or None
+        response: return data dat procedure returns
+        one: if True returns first record from procedure else retruns all
+        """
+        for tries in range(5):
+            try:
+                result = None
+                engine = self.engine
+                raw_conn = engine.raw_connection()
+                cursor = raw_conn.cursor()
+
+                if params is None:
+                    params = []
+
+                if type(params) is list or None:
+                    cursor.callproc(procname, params)
+                elif type(params) is dict:
+                    cursor.callproc(procname, keywordParameters=params)
+                else:
+                    raise TypeError("params must me list, dictionary")
+
+                if response is True:
+                    cursor.nextset()
+                    if one is True:
+                        result = cursor.fetchone()
+                    else:
+                        result = cursor.fetchall()
+
+                cursor.close()
+                raw_conn.commit()
+                return result
+
+            except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
+                sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
+                print(traceback.extract_stack())
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                sleep(randrange(5, 20))
+                self.connect()
+                continue
+
+            except AttributeError as e:
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                if str(e) == "'pyodbc.Cursor' object has no attribute 'callproc'":
+                    raise NotImplemented("pyodbc does not support callproc create connection string using pymssql")
+
+            except Exception as e:
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                break
+
+    def log_processor(self):
+        """When database connection is available this method
+         will read all log files that are made in last 5 days
+         and insert data into database log table"""
+        raise NotImplementedError
 
 # ================  EXAMPLES:
+
+# ------ SELECT ----------
 # api = DbEngine()
 # api.connect(0)
-
 
 # returns data that is NOT NULL in column status
 # filters = {'status': True, 'thread': [1,2,3]}
@@ -237,3 +541,32 @@ class DbEngine:
 # data = api.select('proxy_list')
 # print(data)
 
+# ------ MERGE ----------
+# api = DbEngine()
+# api.connect(2)
+#
+# persons = {0: {'registry_number': '000','pid': '123', 'ime': 'Drаgan', 'prezime': 'Matešić'}, 1: {'registry_number': '000','pid': '345', 'ime': 'Ivan', 'prezime': 'Matešić'},
+#            2: {'registry_number': '000','pid': '567', 'ime': 'Marija', 'prezime': 'Matešić'}, 3: {'registry_number': '000','pid': '789','ime': 'Nada', 'prezime': 'Matešić'}}
+# api.merge('persons',persons, filters={'archive': None, 'registry_number': '000'})
+
+# ------ INSERT ----------
+# api = DbEngine()
+# api.connect(2)
+# persons = {0: {'registry_number': '001','pid': '123', 'ime': 'Drаgan', 'prezime': 'Matešić'}, 1: {'registry_number': '001','pid': '345', 'ime': 'Ivan', 'prezime': 'Matešić'}}
+# api.insert('persons', persons)
+
+# ------ DELETE ----------
+# api = DbEngine()
+# api.connect(2)
+# delete filters are same as select filters
+
+# filters = {'sha': ['332f10873dbe4bb6bf67dfe94269e96b77252e8013100902e62fe2e8dd1697b1', "218a20f30cfca471498462d403fd1e8c0d7e16e38902e20b071b109fee893e2a"]}
+# filters = {'sha':  ['332f10873dbe4bb6bf67dfe94269e96b77252e8013100902e62fe2e8dd1697b1', "218a20f30cfca471498462d403fd1e8c0d7e16e38902e20b071b109fee893e2a"], 'registry_number': '001'}
+# filters = {'sha': None}
+# api.delete('persons', filters)
+
+# ------ CALLING PROCEDURE ----------
+# api = DbEngine()
+# api.connect(3)
+# r = api.proc('apr_list_cnt', response=True, one=True)
+# print(r)

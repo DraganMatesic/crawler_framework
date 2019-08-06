@@ -67,7 +67,6 @@ class ProxyLog:
     step_name = Column(String(1500))  # name of the step in program
 
 
-
 class ProxyUsageAll:
     __tablename__ = proxy_usage_table
 
