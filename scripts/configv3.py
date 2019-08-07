@@ -70,8 +70,9 @@ def input_handler():
         return int(option)
 
 
-def db_con_list():
-    print("\nListing existing connections")
+def db_con_list(print_op=True):
+    if print_op is True:
+        print("\nListing existing connections")
     check_path = os.path.exists(database_config)
     if check_path is True:
         with open(database_config, 'rb') as fr:
@@ -450,25 +451,34 @@ class Deployment:
         self.commands()
 
     def commands(self):
-        sys.stdout.write("\nChoose connection where to deploy framework\n")
         op_con_list = {}
-        data = db_con_list()
+        data = db_con_list(print_op=False)
         connections_orignal = data.get('connections')
 
         connections = {k:{x:y for x,y in v.items() if x not in ['password', 'edit_date']} for k, v in connections_orignal.items()}
         for k, v in connections.items():
             op_con_list.update({len(op_con_list): {k: v}})
 
-        con_list = create_option_list(op_con_list, f'Select connection you want to edit\n{lines}')
-        write_line(txt=con_list)
-        while True:
-            option = input_handler()
-            if option not in op_con_list.keys():
-                write_line(6)
-                continue
-            break
+        conection_id = None
+        for k, v in connections_orignal.items():
+            print(k, v)
+            if v.get('deploy') is True:
+                sys.stdout.write(f"\nExisting deploy connection found. Connection id {k}\n")
+                conection_id = k
+                break
 
-        conection_id = list(op_con_list.get(option).keys())[0]
+        if conection_id is None:
+            sys.stdout.write("\nChoose connection where to deploy framework\n")
+            con_list = create_option_list(op_con_list, f'Select connection you want to use\n{lines}')
+            write_line(txt=con_list)
+            while True:
+                option = input_handler()
+                if option not in op_con_list.keys():
+                    write_line(6)
+                    continue
+                break
+            conection_id = list(op_con_list.get(option).keys())[0]
+
         deploy_stat = Deploy(conection_id).status()
 
         if deploy_stat == 400:

@@ -50,6 +50,7 @@ def version_control():
         if py_version is not None:
             py_data = {'version': py_version}
             sys.stdout.write('\nSelected Python version is %s\n' % py_version)
+
             sys.stdout.write('\nChecking paths for this Python pleas wait..\n')
             p = Popen(
                 'py -%s -c "import sys; import os; sys.stdout.write(os.path.dirname(sys.executable))" ' % py_version,
@@ -103,7 +104,7 @@ if sys.version_info.major < 3:
         else:
             sys.stdout.write('\nInstall Python 3 to be able to use this framework')
     else:
-       version_call()
+        version_call()
 else:
     try:
         from Scripts.configv3 import *

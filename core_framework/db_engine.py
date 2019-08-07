@@ -28,7 +28,6 @@ logging.basicConfig(filename=file_path, format=log_format,
 
 
 def db_con_list():
-    print("\nListing existing connections")
     check_path = os.path.exists(database_config)
     if check_path is True:
         with open(database_config, 'rb') as fr:
@@ -207,7 +206,7 @@ class DbEngine:
         data = ''.join(sorted(''.join(data).lower()))
         return data
 
-    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False):
+    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False, delete=False):
         """
         :param str tablename:
         :param dict data:
@@ -301,8 +300,12 @@ class DbEngine:
 
                     # if close id's is not empty
                     if close_ids:
-                        session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
-                            .update({self.archive_date: datetime.now()}, synchronize_session='fetch')
+                        if delete is False:
+                            session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
+                                .update({self.archive_date: datetime.now()}, synchronize_session='fetch')
+                        else:
+                            session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
+                                .delete(synchronize_session='fetch')
 
                 # if there is no prexisting data in database then insert without comparing
                 elif insert is True:

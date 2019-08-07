@@ -135,9 +135,9 @@ class ProxyServer:
         pool.join()
 
 
-if __name__ == '__main__':
-    # while True:
-        api = ProxyServer()
-        api.run()
-
+# if __name__ == '__main__':
+#     # while True:
+#         api = ProxyServer()
+#         api.run()
+#
 
