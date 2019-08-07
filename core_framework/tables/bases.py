@@ -9,3 +9,4 @@ proxy_table = "proxy_list"
 column_description_table = 'tablecol_descriptor'
 proxy_usage_table = 'proxy_usage'
 proxy_log_table = 'proxy_log'
+proxy_error_log_table = 'proxy_error_log'

@@ -56,3 +56,16 @@ class ProxyLog:
     errors = Column(Integer())  # number of errors that occurred during crawling time
     crawled_urls = Column(Integer())  # number of urls that have been crawled
     errors_ratio = Column(Integer())  # error ratio between number of crawled webpages and error that appeared
+
+
+class ProxyErrorLog:
+    """table contains all records how did crawling finished for specific proxy webpage"""
+    __tablename__ = proxy_error_log_table
+
+    proc_id = Column(String(64))  # it is same proc_id used in proxy_log table that our link between tables
+    program = Column(String(2000))  # name of running instance of some class
+    method = Column(String(100))  # name of class method where error occurred
+    err_type = Column(String(1000))  # type of error that occurred
+    err_line = Column(Integer())  # line number where error occurred
+    err_desc = Column(String(4000))  # description of error in details if it is provided by exception
+    err_cnt  = Column(Integer())  # number of how many times same error occurred
