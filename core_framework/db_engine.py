@@ -475,7 +475,8 @@ class DbEngine:
                     raise TypeError("params must me list, dictionary")
 
                 if response is True:
-                    cursor.nextset()
+                    if self.db_type not in ['pstg']:
+                        cursor.nextset()
                     if one is True:
                         result = cursor.fetchone()
                     else:
@@ -567,6 +568,12 @@ class DbEngine:
 
 # ------ CALLING PROCEDURE ----------
 # api = DbEngine()
-# api.connect(3)
+# api.connect(3)  # MsSQL
 # r = api.proc('apr_list_cnt', response=True, one=True)
+# api.connect(2)  # PostGre
+# r = api.proc('f_perosn_upd', params=["1acbccf2d79545a0fc0a0ac0b9d11c5971ccd490a8cd5c32e14bec6ec934a497"], response=True, one=True)
 # print(r)
+
+
+
+
