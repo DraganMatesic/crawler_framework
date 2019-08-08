@@ -4,6 +4,7 @@ BaseMs = declarative_base()
 BaseOra = declarative_base()
 BasePstg = declarative_base()
 
+
 tor_table = "tor_list"
 proxy_table = "proxy_list"
 column_description_table = 'tablecol_descriptor'

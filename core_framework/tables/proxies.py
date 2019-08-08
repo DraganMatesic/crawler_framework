@@ -44,7 +44,7 @@ class ProxyListPstg(BasePstg, ProxyListAll):
 #======================================================================
 
 
-class ProxyLog:
+class ProxyLogAll:
     """table contains all records how did crawling finished for specific proxy webpage"""
     __tablename__ = proxy_log_table
 
@@ -58,8 +58,23 @@ class ProxyLog:
     errors_ratio = Column(Integer())  # error ratio between number of crawled webpages and error that appeared
 
 
-class ProxyErrorLog:
-    """table contains all records how did crawling finished for specific proxy webpage"""
+class ProxyLogOra(BaseOra, ProxyLogAll):
+    id = Column('id', Integer, Sequence('proxy_log_id_seq'), primary_key=True)
+
+
+class ProxyLogMS(BaseMs, ProxyLogAll):
+    id = Column('id', Integer, primary_key=True)
+
+
+class ProxyLogPstg(BasePstg, ProxyLogAll):
+    proxy_id_seq = Sequence('proxy_log_id_seq', metadata=BasePstg.metadata)
+    id = Column(
+        Integer, proxy_id_seq,
+        server_default=proxy_id_seq.next_value(), primary_key=True)
+
+
+class ProxyErrorLogAll:
+    """table contains all error records for specific proxy webpage"""
     __tablename__ = proxy_error_log_table
 
     proc_id = Column(String(64))  # it is same proc_id used in proxy_log table that our link between tables
@@ -68,4 +83,19 @@ class ProxyErrorLog:
     err_type = Column(String(1000))  # type of error that occurred
     err_line = Column(Integer())  # line number where error occurred
     err_desc = Column(String(4000))  # description of error in details if it is provided by exception
-    err_cnt  = Column(Integer())  # number of how many times same error occurred
+    err_cnt = Column(Integer())  # number of how many times same error occurred
+
+
+class ProxyErrorLogOra(BaseOra, ProxyErrorLogAll):
+    id = Column('id', Integer, Sequence('proxy_err_id_seq'), primary_key=True)
+
+
+class ProxyErrorLogMS(BaseMs, ProxyErrorLogAll):
+    id = Column('id', Integer, primary_key=True)
+
+
+class ProxyErrorLogPstg(BasePstg, ProxyErrorLogAll):
+    proxy_id_seq = Sequence('proxy_err_id_seq', metadata=BasePstg.metadata)
+    id = Column(
+        Integer, proxy_id_seq,
+        server_default=proxy_id_seq.next_value(), primary_key=True)

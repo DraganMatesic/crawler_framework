@@ -56,6 +56,7 @@ class Deploy(DbEngine):
                 # creates auto triggers and tables
                 BasePstg.metadata.create_all(self.engine)
 
+
             # add or remove data from tables
             session = sessionmaker(bind=self.engine)()
 
