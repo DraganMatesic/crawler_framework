@@ -203,6 +203,7 @@ class DbEngine:
     @staticmethod
     def order_data(data):
         """method converts dataframe row to text and sorts characters alphabetically"""
+        data = [str(d) for d in data]
         data = ''.join(sorted(''.join(data).lower()))
         return data
 
@@ -256,8 +257,9 @@ class DbEngine:
                 # change df column names to lower_letters
                 web_df.columns = map(str.lower, web_df.columns)
 
-                # calculate sha value and append to df
-                web_df['sha'] = [hashlib.sha3_256(str(self.order_data(row)).encode()).hexdigest() for row in web_df.values]
+                # calculate sha value and append to df if sha parameter is True
+                if not 'sha' in web_df.columns:
+                    web_df['sha'] = [hashlib.sha3_256(str(self.order_data(row)).encode()).hexdigest() for row in web_df.values]
                 web_columns = list(web_df.columns)
 
                 # +========  COMPARE DATA ========+
@@ -359,7 +361,8 @@ class DbEngine:
                 data_df.columns = map(str.lower, data_df.columns)
 
                 # calculate sha value and append to df
-                data_df['sha'] = [hashlib.sha3_256(str(self.order_data(row)).encode()).hexdigest() for row in data_df.values]
+                if not 'sha' in data_df.columns:
+                    data_df['sha'] = [hashlib.sha3_256(str(self.order_data(row)).encode()).hexdigest() for row in data_df.values]
                 insert_data = data_df.to_dict('records')
 
                 session = sessionmaker(bind=engine)()
@@ -548,16 +551,25 @@ class DbEngine:
 # ------ MERGE ----------
 # api = DbEngine()
 # api.connect(2)
-#
 # persons = {0: {'registry_number': '000','pid': '123', 'ime': 'Drаgan', 'prezime': 'Matešić'}, 1: {'registry_number': '000','pid': '345', 'ime': 'Ivan', 'prezime': 'Matešić'},
 #            2: {'registry_number': '000','pid': '567', 'ime': 'Marija', 'prezime': 'Matešić'}, 3: {'registry_number': '000','pid': '789','ime': 'Nada', 'prezime': 'Matešić'}}
 # api.merge('persons',persons, filters={'archive': None, 'registry_number': '000'})
+
+# api = DbEngine()
+# api.connect()
+# proxy = {0 : {'ip': '103.106.238.230', 'port': '50941', 'sha': 'a38d4ab1335cc143d1d3ccc46f0be5d5caed63130dc67605e55da15b98773954', 'proxy_source': 'https://www.sslproxies.org/'}}
+# api.merge('proxy_list',proxy, filters={'sha': 'a38d4ab1335cc143d1d3ccc46f0be5d5caed63130dc67605e55da15b98773954'}, update=False, sha=False)
 
 # ------ INSERT ----------
 # api = DbEngine()
 # api.connect(2)
 # persons = {0: {'registry_number': '001','pid': '123', 'ime': 'Drаgan', 'prezime': 'Matešić'}, 1: {'registry_number': '001','pid': '345', 'ime': 'Ivan', 'prezime': 'Matešić'}}
 # api.insert('persons', persons)
+
+# api = DbEngine()
+# api.connect()
+# log = {0: {'start_time': datetime.now(), 'webpage': 'https://www.sslproxies.org/', 'proc_id': '90cd4be5e2fc98d44cefbb06703f059dd1dc192fee00b10777f609a2727991e1', 'crawled_urls': 39, 'errors_ratio': 0, 'duration': 2, 'end_time': datetime.now()}}
+# api.insert('proxy_log', log)
 
 # ------ DELETE ----------
 # api = DbEngine()

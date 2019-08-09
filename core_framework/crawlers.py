@@ -29,6 +29,13 @@ class ClassicProxy:
         self.conn_limiter = asyncio.BoundedSemaphore(max_conn)
         self.session = aiohttp.ClientSession(headers=self.headers)
 
+    def error_desc_eval(self, e):
+        if type(e) is not None:
+            e = str(e)
+        if e == '':
+            e = None
+        return e
+
     def error_handler(self, errorid, error):
         if errorid not in self.error_log.keys():
             error.update({'err_cnt': 0})
@@ -84,8 +91,9 @@ class ClassicProxy:
                 results.append((await future))
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                error = {'program': self.name, 'method': method_name, 'err_type': str(exc_type), 'err_line': exc_tb.tb_lineno, 'err_desc':  str(e)}
+                error = {'program': self.name, 'method': method_name, 'err_type': str(exc_type), 'err_line': exc_tb.tb_lineno, 'err_desc':  self.error_desc_eval(e)}
                 error_id = hashlib.sha3_256(str(error).encode()).hexdigest()
+                error.update({'error_id': error_id})
                 self.error_handler(error_id, error)
 
         return results
@@ -111,8 +119,9 @@ class ClassicProxy:
                     return html
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                error = {'program': self.name, 'method': method_name, 'err_type': str(exc_type), 'err_line': exc_tb.tb_lineno, 'err_desc': str(e)}
+                error = {'program': self.name, 'method': method_name, 'err_type': str(exc_type), 'err_line': exc_tb.tb_lineno, 'err_desc': self.error_desc_eval(e), 'url': url}
                 error_id = hashlib.sha3_256(str(error).encode()).hexdigest()
+                error.update({'error_id': error_id})
                 self.error_handler(error_id, error)
 
     def extract_urls(self, html):

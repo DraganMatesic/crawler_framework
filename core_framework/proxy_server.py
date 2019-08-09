@@ -12,7 +12,6 @@ from core_framework.crawlers import *
 from core_framework.db_engine import DbEngine
 
 
-
 def db_con_list():
     check_path = os.path.exists(database_config)
     if check_path is True:
@@ -21,8 +20,6 @@ def db_con_list():
             return data
     else:
         raise FileNotFoundError(f"File does not exist on path: {database_config}")
-
-
 
 
 class NoDaemonProcess(mp.Process):
@@ -60,8 +57,9 @@ class Providers:
                 ]
 
 
-class ProxyServer:
+class ProxyServer(DbEngine):
     def __init__(self):
+        DbEngine.__init__(self)
         self.my_ip = requests.get(ip_checker).content
 
     @staticmethod
@@ -89,6 +87,9 @@ class ProxyServer:
             return crawler.log, crawler.error_log, data.url, duration, ips_clean
 
     def gather(self):
+        self.connect()
+        existing_proxies = [r.get('sha') for r in self.select('proxy_list', columns=['sha'])]
+
         providers = Providers()
         provider_data = providers.classic()
         pool = mp.Pool(4)
@@ -96,27 +97,35 @@ class ProxyServer:
         pool.close()
         pool.join()
 
-        print("Final data")
+        print("\nFinal data")
+        proxy_error_log, proxy_log = dict(), dict()
+
         for data in crawled_data:
             log, error_log, webpage, crawling_time, proxies = data
-            print(webpage, crawling_time, proxies)
+            for proxy in proxies:
+                # preparing data for check
+                ip, port = proxy
+                sha = hashlib.sha3_256(str(proxy).encode()).hexdigest()
+                packed = {'ip': ip, 'port': port, 'sha': sha, 'proxy_source': webpage}
 
-            print("log",log)
-            print("error_log", error_log)
-            for error, times in error_log.items():
-                print(error, times)
-            print("====="*20)
+                # skipping any existing proxies that we have in database to speed up process
+                if sha in existing_proxies:
+                    continue
 
+                # check if proxy exists if not then add
+                self.merge('proxy_list', {0: packed}, filters={'sha': sha}, update=False)
 
-    def pull_db_data(self):
-        # get server connection string where framework is deployed
-        deploy_db_id = None
-        conn_strings= db_con_list().get('connections')
-        for id, data in conn_strings.items():
-            if 'deploy' in data.keys():
-                deploy_db_id = id
-        if deploy_db_id is None:
-            raise FileExistsError(f"cant find deploy connection string in {database_config}")
+            # preparing logs for insert
+            for errrid, error_data in error_log.items():
+                proc_id = log.get('proc_id')
+                error_data.update({'proc_id': proc_id})
+                proxy_error_log.update({len(proxy_error_log): error_data})
+            proxy_log.update({len(proxy_log): log})
+
+        # insert results of crawling in logs
+        self.insert('proxy_log', proxy_log)
+        if proxy_error_log :
+            self.insert('proxy_error_log', proxy_error_log)
 
     # def ip_checker(self):
     #     while True:
@@ -127,7 +136,6 @@ class ProxyServer:
         task()
 
     def run(self):
-        # self.pull_db_data()
         tasks = [self.gather]
         pool = MyPool(4)
         pool.map(self.task_handler, tasks)
@@ -135,9 +143,9 @@ class ProxyServer:
         pool.join()
 
 
-# if __name__ == '__main__':
-#     # while True:
-#         api = ProxyServer()
-#         api.run()
-#
+if __name__ == '__main__':
+    # while True:
+        api = ProxyServer()
+        api.run()
+
 
