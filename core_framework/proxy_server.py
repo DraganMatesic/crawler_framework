@@ -127,16 +127,23 @@ class ProxyServer(DbEngine):
         if proxy_error_log :
             self.insert('proxy_error_log', proxy_error_log)
 
-    # def ip_checker(self):
-    #     while True:
-    #         print("priter", 1)
-    #         sleep(1)
+    def ip_checker(self):
+        self.connect()
+        # check new proxies
+        new_proxies = self.select('proxy_list', filters={'last_checked': None}, columns=['ip', 'port', 'sha'])
+        new_proxies = new_proxies[:10]
+        crawler = CrawlerChecker(new_proxies, self.my_ip)
+        checked = crawler.start()
+        print(checked)
+        for row in checked:
+            print(row)
 
     def task_handler(self, task):
         task()
 
     def run(self):
-        tasks = [self.gather]
+        # tasks = [self.gather]
+        tasks = [self.ip_checker]
         pool = MyPool(4)
         pool.map(self.task_handler, tasks)
         pool.close()
@@ -144,8 +151,7 @@ class ProxyServer(DbEngine):
 
 
 if __name__ == '__main__':
-    # while True:
-        api = ProxyServer()
-        api.run()
+    api = ProxyServer()
+    api.run()
 
 

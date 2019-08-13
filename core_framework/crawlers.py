@@ -4,10 +4,16 @@ import aiohttp
 import logging
 import hashlib
 from sys import stdout
+from time import time, sleep
+from random import shuffle
 from urllib.parse import *
 from lxml import html as lh
 from core_framework.parsers import *
 from core_framework import user_agent
+from core_framework.settings import *
+
+
+
 
 
 class ClassicProxy:
@@ -54,7 +60,6 @@ class ClassicProxy:
         result = future.result()
         return result
 
-    # ============= GATHER PROXIES ===================
     async def crawl(self):
         urls = [self.start_url]
         all_proxies = list()
@@ -133,3 +138,101 @@ class ClassicProxy:
             if url not in self.parsed_urls and url.startswith(self.base_url):
                 found_urls.append(url)
         return found_urls
+
+
+class CrawlerChecker:
+    name = 'CrawlerChecker'
+
+    def __init__(self, proxy_list, my_ip):
+        self.checked_proxies = []
+        self.all_proxies = proxy_list
+        self.my_ip = my_ip
+
+    async def check_ip(self):
+        futures, results = list(), list()
+
+        for proxy in self.all_proxies:
+            sha = proxy.get('sha')
+            if proxy in self.checked_proxies:
+                continue
+            futures.append(self.proxy_async(proxy))
+            self.checked_proxies.append(sha)
+
+        for future in asyncio.as_completed(futures):
+            try:
+                results.append((await future))
+            except Exception as e:
+                logging.warning('Exception in CrawlerType1.check_ip: {}'.format(e))
+
+        return results
+
+    async def proxy_async(self, proxy):
+
+        class ProxyStats:
+            bad_http = None
+            bad_https = None
+
+        ip, port, sha = proxy.get('ip'), proxy.get('port'), proxy.get('sha')
+
+        protocol_list = list()
+
+        proxy_stats = ProxyStats
+        protocol_checks = ['http', 'https']
+
+        for protocol in protocol_checks:
+            tries = 0
+            protocol_judges = judges.get(protocol)
+            shuffle(protocol_judges)
+            for judge in protocol_judges:
+                html = await self.proxy_request(judge, proxy=f'http://{ip}:{port}')
+                if html == 400:
+                    tries += 1
+                    if tries >= max_judges:
+                        setattr(proxy_stats, f'bad_{protocol}', True)
+                        break
+                    continue
+
+                if re.search(self.my_ip, html, re.MULTILINE | re.DOTALL) is not None:
+                    setattr(proxy_stats, f'bad_{protocol}', True)
+                    break
+                if re.search(self.my_ip, html, re.MULTILINE | re.DOTALL) is None:
+                    setattr(proxy_stats, f'bad_{protocol}', False)
+                    if protocol not in protocol_list:
+                        protocol_list.append(protocol)
+                protocol_stat = getattr(proxy_stats, f'bad_{protocol}')
+                if protocol_stat is False:
+                    break
+
+        bad_proxy = None
+        bad_http = proxy_stats.bad_http
+        bad_https = proxy_stats.bad_https
+
+        if (bad_http is True and bad_https is True) or (bad_http is None and bad_https is None):
+            bad_proxy = True
+        if bad_http is False or bad_https is False:
+            bad_proxy = False
+
+        protocols = None
+        if protocol_list:
+            protocols = ';'.join(protocol_list)
+
+        result = {'sha': sha, 'bad_proxy': bad_proxy, 'bad_http': bad_http, 'bad_https': bad_https, 'protocols': protocols}
+        self.checked_proxies.append(sha)
+        return result
+
+    async def proxy_request(self, url, proxy):
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, proxy=proxy, timeout=10) as response:
+                    html = await response.read()
+                    return html
+        except Exception as e:
+            # print("ERROR",proxy, str(e))
+            return 400
+
+    def start(self):
+        future = asyncio.Task(self.check_ip())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(future)
+        result = future.result()
+        return result
