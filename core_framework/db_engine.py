@@ -387,19 +387,6 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 break
 
-    def import_data(self, conn_id, tablename_old, tablename_new):
-        """
-        imports data from one database to another
-        :param int conn_id:
-        :param str tablename_old:
-        :param str tablename_new:
-
-        conn_id: conn_id of database from where we want to export data
-        tablename_old: name of table where data for exporting is
-        tablename_new: name of table where exported data will be imported
-        """
-        raise NotImplementedError
-
     def delete(self, tablename, filters=None, schema=None):
         """
         deletes records from selected table.
@@ -515,11 +502,76 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 break
 
+    def update(self, tablename, filters, values, schema=None):
+        """
+        :param tablename:
+        :param filters:
+        :param values:
+        :param schema:
+
+        tablename: name of the table we are going to update
+        filters: is a dictionary for where clause
+        values: dictionary where key is column name and value is value that will be added/updated to
+        schema: schema where table is located if it is not in default schema .
+        """
+        for tries in range(5):
+            try:
+                class DbTable(object):
+                    pass
+
+                filters = {k.lower(): v for k, v in filters.items()}
+                # gathering table information from database based on table name
+                # aka reflecting database object
+                engine = self.engine
+                metadata = MetaData(bind=engine)
+                table = Table(tablename, metadata, autoload=True, quote=True, schema=schema)
+                self.lower(table)
+
+                # loading gathered table information to sqlalchemy object
+                mapper(DbTable, table)
+                DbTable.__getattribute__(DbTable, self.primary_key)
+
+                where = []
+                for k, v in filters.items():
+                    col = f"table.c.{k} == '{v}'"
+                    where.append(col)
+                where = ','.join(where)
+
+                statement = table.update().where(eval(where)).values(**values)
+                engine.execute(statement)
+
+            except AttributeError as e:
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                if str(e) == "'pyodbc.Cursor' object has no attribute 'callproc'":
+                    raise NotImplemented("pyodbc does not support callproc create connection string using pymssql")
+
+            except Exception as e:
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                break
+
     def log_processor(self):
         """When database connection is available this method
          will read all log files that are made in last 5 days
          and insert data into database log table"""
         raise NotImplementedError
+
+    def import_data(self, conn_id, tablename_old, tablename_new):
+        """
+        imports data from one database to another
+        :param int conn_id:
+        :param str tablename_old:
+        :param str tablename_new:
+
+        conn_id: conn_id of database from where we want to export data
+        tablename_old: name of table where data for exporting is
+        tablename_new: name of table where exported data will be imported
+        """
+        raise NotImplementedError
+
 
 # ================  EXAMPLES:
 
@@ -589,6 +641,8 @@ class DbEngine:
 # r = api.proc('f_perosn_upd', params=["1acbccf2d79545a0fc0a0ac0b9d11c5971ccd490a8cd5c32e14bec6ec934a497"], response=True, one=True)
 # print(r)
 
-
-
+# ------ UPDATE ----------
+# api = DbEngine()
+# api.connect()
+# api.update('proxy_list', {'port': '3128'}, {'avg_resp': 10})
 

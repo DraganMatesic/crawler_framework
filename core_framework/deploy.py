@@ -72,4 +72,4 @@ class Deploy(DbEngine):
             session.commit()
 
 
-api = Deploy(0)
+# api = Deploy(0)
