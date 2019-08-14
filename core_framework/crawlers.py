@@ -13,9 +13,6 @@ from core_framework import user_agent
 from core_framework.settings import *
 
 
-
-
-
 class ClassicProxy:
     name = 'ClassicProxy'
 
@@ -115,7 +112,7 @@ class ClassicProxy:
     async def http_request(self, url):
         """Makes request on desired page and returns html result"""
         method_name = 'http_request'
-        stdout.write(f'\rtotal_urls for {self.start_url}: {len(self.parsed_urls)}')
+        # stdout.write(f'\rtotal_urls for {self.start_url}: {len(self.parsed_urls)}')
         self.crawled_urls += 1
         async with self.conn_limiter:
             try:
@@ -147,6 +144,7 @@ class CrawlerChecker:
         self.checked_proxies = []
         self.all_proxies = proxy_list
         self.my_ip = my_ip
+        self.proxy_times = dict()
 
     async def check_ip(self):
         futures, results = list(), list()
@@ -171,8 +169,15 @@ class CrawlerChecker:
         class ProxyStats:
             bad_http = None
             bad_https = None
+            noresp_http = None
+            noresp_https = None
 
         ip, port, sha = proxy.get('ip'), proxy.get('port'), proxy.get('sha')
+        if sha not in self.proxy_times.keys():
+            self.proxy_times.update({sha: {'start': [], 'end': []}})
+
+        proxy_time_start = self.proxy_times.get(sha).get('start')
+        proxy_time_end = self.proxy_times.get(sha).get('end')
 
         protocol_list = list()
 
@@ -184,11 +189,14 @@ class CrawlerChecker:
             protocol_judges = judges.get(protocol)
             shuffle(protocol_judges)
             for judge in protocol_judges:
+                proxy_time_start.append(time())
                 html = await self.proxy_request(judge, proxy=f'http://{ip}:{port}')
+                proxy_time_end.append(time())
                 if html == 400:
                     tries += 1
                     if tries >= max_judges:
                         setattr(proxy_stats, f'bad_{protocol}', True)
+                        setattr(proxy_stats, f'noresp_{protocol}', tries)
                         break
                     continue
 
@@ -206,6 +214,8 @@ class CrawlerChecker:
         bad_proxy = None
         bad_http = proxy_stats.bad_http
         bad_https = proxy_stats.bad_https
+        noresp_http = proxy_stats.noresp_http
+        noresp_https = proxy_stats.noresp_https
 
         if (bad_http is True and bad_https is True) or (bad_http is None and bad_https is None):
             bad_proxy = True
@@ -216,7 +226,21 @@ class CrawlerChecker:
         if protocol_list:
             protocols = ';'.join(protocol_list)
 
-        result = {'sha': sha, 'bad_proxy': bad_proxy, 'bad_http': bad_http, 'bad_https': bad_https, 'protocols': protocols}
+        avgs, avg_resp = [], None
+        for i in range(min([len(proxy_time_start),len(proxy_time_end)])):
+            avg = round(proxy_time_end[i] - proxy_time_start[i], 2)
+            avgs.append(avg)
+
+        if avgs:
+            avg_resp = round(sum(avgs)/len(avgs), 2)
+
+        result = {'sha': sha, 'bad_proxy': bad_proxy, 'bad_http': bad_http, 'bad_https': bad_https, 'protocols': protocols, 'avg_resp': avg_resp}
+
+        if noresp_http is not None:
+            result.update({'noresp_http': noresp_http})
+        if noresp_https is not None:
+            result.update({'noresp_https': noresp_https})
+
         self.checked_proxies.append(sha)
         return result
 

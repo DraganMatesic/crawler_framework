@@ -17,7 +17,7 @@ class ProxyListAll:
     protocols = Column(String(1000))  # protocols that are available are separated by semicolon (http;https;socks5...)
     proxy_type = Column(String(1000), server_default='public')  # proxy type can be public, vpn, private, residential, dedicated, shared, data center etc..
     last_checked = Column(DateTime)  # date and time when this proxy was checked is it functional and lvl of anonymity
-    anonymity = Column(Integer(), server_default='0', index=True)   # after check is done it will get anonymity rating 0 = unprocessed, 1 = anonymous, 2 = transparent, 3 = elite
+    anonymity = Column(Integer(), server_default='0', index=True)   # after check is done it will get anonymity rating null = bad proxy, 0 = unprocessed, 1 = anonymous/transparent, 2 = elite
     disabled = Column(Integer(), server_default='0', index=True)   # status of proxy server if 0 it is up runing if 1 proxy server is down
     username = Column(String(1000))  # username for connection on private proxy/VPN
     password = Column(String(1000))  # password for connection on private proxy/VPN

@@ -13,7 +13,7 @@ import traceback
 
 import sqlalchemy
 from sqlalchemy import *
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import mapper
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -69,7 +69,7 @@ class DbEngine:
             self.lib = connection.get('lib')
             string = engine_connection_strings.get(self.db_type).get(self.lib)
             connection_string = string.format(**connection)
-            print(connection_string)
+            # print(connection_string)
             self.engine = create_engine(connection_string, **kwargs)
             try:
                 self.engine.connect()
@@ -95,8 +95,18 @@ class DbEngine:
                 and_clause = (and_(getattr(table, attr).isnot(None)))
             elif type(value) is list:
                 and_clause = (and_(getattr(table, attr).in_(value)))
+            elif type(value) is str:
+                if value.startswith(">="):
+                    value = value.strip(">=")
+                    and_clause = (and_(getattr(table, attr) >= value))
+                elif value.startswith("<="):
+                    value = value.strip("<=")
+                    and_clause = (and_(getattr(table, attr) <= value))
+                else:
+                    and_clause = (and_(getattr(table, attr) == value))
             else:
                 and_clause = (and_(getattr(table, attr) == value))
+
             filter_data.append(and_clause)
         return filter_data
 
@@ -163,6 +173,7 @@ class DbEngine:
 
                         filter_and = self.and_connstruct(DbTable, filters)
                         results = session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).statement
+
                     else:
                         results = session.query(DbTable).statement
                     db_df = pd.read_sql(results, engine, index_col=self.primary_key)
@@ -578,6 +589,14 @@ class DbEngine:
 # ------ SELECT ----------
 # api = DbEngine()
 # api.connect(0)
+
+# returns data where date is bigger or equal to the desired time
+# api.connect()
+# now = datetime.today() - timedelta(hours=1)
+# filters = {'last_checked': f">={now}", 'anonymity': 2}
+# data = api.select('proxy_list', filters=filters)
+# print(len(data))
+
 
 # returns data that is NOT NULL in column status
 # filters = {'status': True, 'thread': [1,2,3]}
