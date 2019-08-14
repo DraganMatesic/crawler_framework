@@ -11,6 +11,7 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from distutils.sysconfig import get_python_lib
 from core_framework.deploy import Deploy
+from core_framework.proxy_server import ProxyServer
 
 width = 50
 lines = '-' * width
@@ -18,7 +19,7 @@ space = " " * round(width / 3.5)
 sys.path.insert(0, get_python_lib())
 
 from core_framework.settings import *
-
+from subprocess import Popen, CREATE_NEW_CONSOLE
 
 class DbAttrs:
     username = None
@@ -95,7 +96,7 @@ class Configuration:
         
     def commands(self):
 
-        master_options ={1: 'Database configuration', 2: 'Deploy framework'}
+        master_options ={1: 'Database configuration', 2: 'Deploy framework', 3: 'Run proxy server'}
 
         master_list = create_option_list(master_options, 'SELECT OPTION:')
         write_line(txt=master_list)
@@ -107,6 +108,19 @@ class Configuration:
         if option == 2:
             Deployment()
 
+        if option == 3:
+            try:
+                api = ProxyServer()
+                program_location = api.location
+                # getting default interpreter
+                py_ver_info = sys.version_info
+                py_version = f"-{py_ver_info[0]}.{py_ver_info[1]}"
+                Popen(['py', py_version, program_location])
+                del api
+
+                # api.run()
+            except Exception as e:
+                print(str(e))
 
 class DatabaseConfiguration():
     def __init__(self):

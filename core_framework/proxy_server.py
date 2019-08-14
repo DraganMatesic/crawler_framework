@@ -61,6 +61,7 @@ class ProxyServer(DbEngine):
     def __init__(self):
         DbEngine.__init__(self)
         self.my_ip = requests.get(ip_checker).content
+        self.location = os.path.realpath(__file__)
 
     @staticmethod
     def providers(data):
@@ -87,6 +88,7 @@ class ProxyServer(DbEngine):
             return crawler.log, crawler.error_log, data.url, duration, ips_clean
 
     def gather(self):
+        print("> ip gatherer started")
         tick = 0
         wait_time = 12000
         sql_lastcheck = datetime.now()
@@ -153,6 +155,7 @@ class ProxyServer(DbEngine):
             sleep(1)
 
     def ip_checker(self):
+        print("> ip checker started")
         while True:
             try:
                 self.connect()
@@ -189,15 +192,23 @@ class ProxyServer(DbEngine):
         task()
 
     def run(self):
-        tasks = [self.gather, self.ip_checker]
-        pool = MyPool(4)
-        pool.map(self.task_handler, tasks)
-        pool.close()
-        pool.join()
+        try:
+            tasks = [self.gather, self.ip_checker]
+            pool = MyPool(4)
+            pool.map(self.task_handler, tasks)
+            pool.close()
+            pool.join()
+        except KeyboardInterrupt:
+            pass
 
 
-# if __name__ == '__main__':
-#     api = ProxyServer()
-#     api.run()
+if __name__ == '__main__':
+    print('''
++-----------------------------------+
+|           Proxy Server            |
++-----------------------------------+
+    ''')
+    api = ProxyServer()
+    api.run()
 
 

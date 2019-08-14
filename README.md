@@ -54,7 +54,7 @@ on selected server connection. In our case we will deploy it on PostgreSQL local
 
 ## Starting proxy server
 Proxy server is multifunctional program that acquires new proxies(crawlers), test proxies, creates tor network etc.
- 
- 
 
-
+Open cmd/terminal and write  ```config.py```. Select option 3 (Run proxy server) and program will start.
+All data will be saved in database where you have deployed crawler_framewok.
+If you didn't made deployment then this will probably end with exceptions.
