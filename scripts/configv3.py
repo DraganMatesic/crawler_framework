@@ -12,6 +12,7 @@ from sqlalchemy import create_engine
 from distutils.sysconfig import get_python_lib
 from core_framework.deploy import Deploy
 from core_framework.proxy_server import ProxyServer
+from core_framework.tor_network import TorNetwork, install as tor_install
 
 width = 50
 lines = '-' * width
@@ -55,7 +56,8 @@ def write_line(print_code=None, txt=None):
                        4: '> Do you wanna change library that is going to be used by sqlalchemy? [y/n]\n',
                        5: "Answer can be y or n. Try again..\n",
                        6: "That option doesnt exist. Try again..\n",
-                       7: f"{lines}\nSetting up string connection arguments\n{lines}\n"
+                       7: f"{lines}\nSetting up string connection arguments\n{lines}\n",
+                       8: f"\n+{lines}+\n{space}TOR SETUP{space}\n+{lines}+\n\n"
                        }
         sys.stdout.write(print_codes.get(print_code))
     else:
@@ -89,38 +91,140 @@ def create_framework_folders():
     if not os.path.exists(database_log_folder):
         os.mkdir(database_log_folder)
 
+
+def bool_handler():
+    while True:
+        bool_stat = False
+        option = input()
+        if option.lower() not in ['y', 'n', 'yes', 'no']:
+            write_line(5)
+            continue
+        if option.lower() in ['y', 'yes']:
+            bool_stat = True
+        return bool_stat
+
+
 class Configuration:
     def __init__(self):
         create_framework_folders()
         self.commands()
-        
+
+    def bool_handler(self):
+        while True:
+            bool_stat = False
+            option = input()
+            if option.lower() not in ['y', 'n', 'yes', 'no']:
+                write_line(5)
+                continue
+            if option.lower() in ['y', 'yes']:
+                bool_stat = True
+            return bool_stat
+
     def commands(self):
+        while 1:
+            master_options ={1: 'Database configuration', 2: 'Deploy framework', 3: 'Run proxy server', 4: 'Tor setup'}
 
-        master_options ={1: 'Database configuration', 2: 'Deploy framework', 3: 'Run proxy server'}
+            master_list = create_option_list(master_options, 'SELECT OPTION:')
+            write_line(txt=master_list)
+            option = input_handler()
 
+            if option == 1:
+                'Database configuration'
+                DatabaseConfiguration()
+
+            if option == 2:
+                'Deploy framework'
+                Deployment()
+
+            if option == 3:
+                'Run proxy server'
+                try:
+                    api = ProxyServer()
+                    program_location = api.location
+                    # getting default interpreter
+                    py_ver_info = sys.version_info
+                    py_version = f"-{py_ver_info[0]}.{py_ver_info[1]}"
+                    Popen(['py', py_version, program_location])
+                    del api
+                except Exception as e:
+                    print(str(e))
+
+            if option == 4:
+                "Tor setup"
+                TorSetup()
+
+            if option not in [3]:
+                write_line(txt='Back to main menu? [y/n]')
+                exit_a = self.bool_handler()
+                if exit_a is False:
+                    exit()
+            else:
+                break
+
+
+class TorSetup():
+    def __init__(self):
+        self.commands()
+
+    def commands(self):
+        master_options = {1: 'Install', 2: 'Tor options'}
+        write_line(8)
         master_list = create_option_list(master_options, 'SELECT OPTION:')
         write_line(txt=master_list)
         option = input_handler()
 
         if option == 1:
-            DatabaseConfiguration()
+            "install tor with default options"
+            tor_install()
 
         if option == 2:
-            Deployment()
+            "change default options tor with changed parameters"
+            current_defaults = ''
+            if os.path.isfile(tor_config):
+                with open(tor_config, 'rb') as fr:
+                    data = pickle.load(fr)
+                    for k, v in data.items():
+                        if str(k).isdigit() is True:
+                            for k1, v1 in v.items():
+                                current_defaults += f'\n{k1} = {v1}'
+                        else:
+                            current_defaults += f'\n{k} = {v}'
 
-        if option == 3:
-            try:
-                api = ProxyServer()
-                program_location = api.location
-                # getting default interpreter
-                py_ver_info = sys.version_info
-                py_version = f"-{py_ver_info[0]}.{py_ver_info[1]}"
-                Popen(['py', py_version, program_location])
-                del api
+            if current_defaults != '':
+                print(f"Current defaults {current_defaults}")
+                print("----------"*10)
 
-                # api.run()
-            except Exception as e:
-                print(str(e))
+            defaults = tor_setup_default.copy()
+
+            while True:
+                setup_info = {0: 'return', 1: 'Number of tor instances (default is 10)', 2: 'Reset identity (default every 30 min)'}
+                master_list = create_option_list(setup_info, 'Select parameter to change:')
+                write_line(txt=master_list)
+                option = input_handler()
+
+                if option == 0:
+                    print("returning...")
+                    return
+
+                if option not in defaults.keys():
+                    write_line(6)
+                    continue
+
+                write_line(txt="enter new numerical value:")
+                new_val = input_handler()
+                get_option = defaults.get(option)
+
+                get_option.update({list(get_option.keys())[0]: new_val})
+
+                write_line(txt="More changes? [y/n]")
+                bool_stat = bool_handler()
+                if bool_stat is False:
+                    print("saving changes")
+                    with open(tor_config, 'wb') as fw:
+                        pickle.dump(defaults, fw)
+                    print("done")
+                    break
+
 
 class DatabaseConfiguration():
     def __init__(self):

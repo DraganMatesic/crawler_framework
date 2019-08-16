@@ -52,6 +52,17 @@ Open cmd/terminal and write  ```config.py```. Select option 2 (Deploy framework)
 the list of connections you created that is going to be used for deployment. This will deploy table structure in selected database 
 on selected server connection. In our case we will deploy it on PostgreSQL localhost server.
 
+## Setup tor expert bundle
+You can skip this if you are not planing to use tor as your proxy provider but only public proxies.
+
+Open cmd/terminal and write  ```config.py```. Select option 4 (Tor setup). Then from to setup option select option 1(Install), 
+this will automatically install tor expert bundle with all necessary directories and subdirectories. 
+
+If you have already have installed and then changed default options then this will reset those options back to default just like some kind of reinstall.
+
+Setup option 2 (Tor options) allows you to change some of defaults when constructing our tor network such as 
+how many tor instances should run in same time or how long time must pass before changing and identity of tor instance.
+
 ## Starting proxy server
 Proxy server is multifunctional program that acquires new proxies(crawlers), test proxies, creates tor network etc.
 

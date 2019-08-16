@@ -5,6 +5,7 @@ framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getu
 database_config = r'{}\db_config.pkl'.format(framework_folder)
 ua_data = r'{}\user_agent.pkl'.format(framework_folder)
 database_log_folder = r'{}\logs'.format(framework_folder)
+tor_config = r'{}\tor_config.pkl'.format(framework_folder)
 
 
 # ---------------------------------------------------------------------------
@@ -25,6 +26,40 @@ judges = {'http': ['http://codearbiter.pythonanywhere.com/', 'http://crodesigner
 # (for example 1st judge give  exception such as ConnecionTimeot or something)
 max_judges = 3
 
+# ---------------------------------------------------------------------------
+# TOR SETTINGS
+# ---------------------------------------------------------------------------
+tor_table_name = 'tor_list'
+tor_base_url = 'https://www.torproject.org'
+tor_url = f'{tor_base_url}/download/tor/'
+tor_dir = f'{framework_folder}\Tor'  # default install path
+tor_user_path = f'{framework_folder}'
+tor_ip_check = 'https://check.torproject.org/'
+tor_setup_default = {1: {'number of tor instances': 10}, 2: {'reset identity': 30}, 'tor_path': tor_dir }
+
+tor_settings = r'''# Where data will be stored?
+DataDirectory {0}\TorData\data\{1}
+
+# Countdown time before exit
+ShutdownWaitLength 5
+
+# Where to write PID
+PidFile {0}\TorData\data\{1}\pid
+
+# Communication ports
+SocksPort {3}:{1}
+ControlPort {3}:{2}
+
+# Authentication of Tor
+CookieAuthentication 1
+
+# GeoIP file paths?
+GeoIPFile {0}\Data\Tor\geoip
+GeoIPv6File {0}\Data\Tor\geoip6
+
+SocksListenAddress {3}
+SocksPolicy accept {3}/24
+'''
 
 # ---------------------------------------------------------------------------
 # DATABASE SETTINGS
@@ -55,4 +90,6 @@ connection_requirements = {'pstg': {'default': pstg_req,
                                  'default': ['username', 'password', 'dsnname'],
                                  'pymssql':  ['username', 'password', 'serverip', 'serverport', 'databasename']}
                              }
+
+
 
