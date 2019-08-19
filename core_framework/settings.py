@@ -1,5 +1,6 @@
 import os
 import getpass
+from core_framework.tables.bases import *
 
 framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
 database_config = r'{}\db_config.pkl'.format(framework_folder)
@@ -29,13 +30,14 @@ max_judges = 3
 # ---------------------------------------------------------------------------
 # TOR SETTINGS
 # ---------------------------------------------------------------------------
-tor_table_name = 'tor_list'
+tor_table_name = tor_table
 tor_base_url = 'https://www.torproject.org'
 tor_url = f'{tor_base_url}/download/tor/'
 tor_dir = f'{framework_folder}\Tor'  # default install path
 tor_user_path = f'{framework_folder}'
 tor_ip_check = 'https://check.torproject.org/'
 tor_setup_default = {1: {'number of tor instances': 10}, 2: {'reset identity': 30}, 'tor_path': tor_dir }
+
 
 tor_settings = r'''# Where data will be stored?
 DataDirectory {0}\TorData\data\{1}

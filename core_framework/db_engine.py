@@ -8,7 +8,6 @@ import pandas as pd
 from time import sleep
 from random import randrange
 from core_framework.settings import *
-# from core import database
 import traceback
 
 import sqlalchemy
@@ -20,11 +19,19 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
 
+
 datetime_string = datetime.now().strftime('%y%m%d')
-file_path = os.path.join(database_log_folder,f'{datetime_string}_log.txt')
-log_format = '[{"error_time": "%(asctime)s", "error_level": "%(levelname)s"}, %(message)s]'
-logging.basicConfig(filename=file_path, format=log_format,
-                    level=logging.ERROR, datefmt='%d-%m-%y %H:%M:%S')
+log_path = os.path.join(database_log_folder,f'{datetime_string}_log.txt')
+
+log_format = '[{"error_time": "%(asctime)s", "error_level": "%(levelname)s", "error_line": %(lineno)d}, "module_name": %(pathname)s, %(message)s]'
+formatter = logging.Formatter(log_format, datefmt='%d-%m-%y %H:%M:%S')
+
+logger = logging.getLogger('db_log')
+logger.setLevel(logging.ERROR)
+fh = logging.FileHandler(log_path)
+fh.setFormatter(formatter)
+fh.setLevel(logging.ERROR)
+logger.addHandler(fh)
 
 
 def db_con_list():
@@ -113,7 +120,7 @@ class DbEngine:
     @staticmethod
     def error_logger(filename, method, exc_type, lineno, e):
         error = {"filename": filename, "method": method, "err_type": str(exc_type), 'err_line': str(lineno), 'err_desc': str(e)}
-        logging.error(error)
+        logger.error(error)
 
     def select(self, tablename, columns=None, filters=None, sql=None, schema=None, index=False, view=True, freeze=False):
         """
@@ -427,7 +434,7 @@ class DbEngine:
 
                 filter_and = self.and_connstruct(DbTable, filters)
                 # for checking statments construct uncoment
-                print(session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).statement)
+                # print(session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).statement)
                 n_rows_deleted = session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).delete(synchronize_session='fetch')
                 session.commit()
                 break
@@ -515,10 +522,10 @@ class DbEngine:
 
     def update(self, tablename, filters, values, schema=None):
         """
-        :param tablename:
-        :param filters:
-        :param values:
-        :param schema:
+        :param str tablename:
+        :param dict filters:
+        :param dict values2:
+        :param str schema:
 
         tablename: name of the table we are going to update
         filters: is a dictionary for where clause
@@ -546,10 +553,10 @@ class DbEngine:
                 for k, v in filters.items():
                     col = f"table.c.{k} == '{v}'"
                     where.append(col)
-                where = ','.join(where)
-
-                statement = table.update().where(eval(where)).values(**values)
+                where = f"and_({','.join(where)})".replace("'None'", 'None')
+                statement = table.update().values(values).where(eval(where))
                 engine.execute(statement)
+                break
 
             except AttributeError as e:
                 error_info = traceback.extract_stack(limit=1)[0]
@@ -557,12 +564,12 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 if str(e) == "'pyodbc.Cursor' object has no attribute 'callproc'":
                     raise NotImplemented("pyodbc does not support callproc create connection string using pymssql")
+                break
 
             except Exception as e:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
-                break
 
     def log_processor(self):
         """When database connection is available this method
@@ -664,4 +671,4 @@ class DbEngine:
 # api = DbEngine()
 # api.connect()
 # api.update('proxy_list', {'port': '3128'}, {'avg_resp': 10})
-
+# api.update('tor_list' , {'port': 52635, 'archive': None}, {'ip': '23.129.64.163', 'identity_time': datetime.now()})
