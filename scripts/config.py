@@ -3,9 +3,16 @@ import sys
 import pickle
 import getpass
 from subprocess import Popen, PIPE, call
+from core_framework.settings import database_log_folder
 
 framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
 python_path = r'{}\py_config.pkl'.format(framework_folder)
+
+
+if os.path.exists(framework_folder) is False:
+    os.mkdir(framework_folder)
+if os.path.exists(database_log_folder) is False:
+    os.mkdir(database_log_folder)
 
 
 def version_control():

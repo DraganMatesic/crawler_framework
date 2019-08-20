@@ -66,6 +66,12 @@ how many tor instances should run in same time or how long time must pass before
 ## Starting proxy server
 Proxy server is multifunctional program that acquires new proxies(crawlers), test proxies, creates tor network etc.
 
-Open cmd/terminal and write  ```config.py```. Select option 3 (Run proxy server) and program will start.
+Open cmd/terminal and write  ```config.py```. Select option 3 (Run proxy server).
+### Suboptions
+From suboptions you can select suboption 0 to run all both public proxy and tor service or suboption 1 to run only public proxy gatherer or
+suboption 2 to run only tor service. <br><br>
+Suboption 2 is great if you want to run tor service on another pc inside your network. 
+By doing so you can increase number of tor that will run but it will not hog your local CPU and RAM.
+<br><br>
 All data will be saved in database where you have deployed crawler_framewok.
 If you didn't made deployment then this will probably end with exceptions.

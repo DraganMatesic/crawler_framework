@@ -12,7 +12,8 @@ from sqlalchemy import create_engine
 from distutils.sysconfig import get_python_lib
 from core_framework.deploy import Deploy
 from core_framework.proxy_server import ProxyServer
-from core_framework.tor_network import TorNetwork, install as tor_install
+from core_framework.tor_network import install as tor_install
+
 
 width = 50
 lines = '-' * width
@@ -138,13 +139,17 @@ class Configuration:
 
             if option == 3:
                 'Run proxy server'
+                proxy_options = {0: 'normal run', 1: 'run without tor', 2: 'run without public proxies'}
+                proxy_op_list = create_option_list(proxy_options, 'SELECT OPTION:')
+                write_line(txt=proxy_op_list)
+                suboption = input_handler()
                 try:
                     api = ProxyServer()
                     program_location = api.location
                     # getting default interpreter
                     py_ver_info = sys.version_info
                     py_version = f"-{py_ver_info[0]}.{py_ver_info[1]}"
-                    Popen(['py', py_version, program_location])
+                    Popen(['py', py_version, program_location, str(suboption)])
                     del api
                 except Exception as e:
                     print(str(e))
@@ -366,7 +371,9 @@ class DatabaseConfiguration():
                     sys.stdout.write(f"{arg_name} cant be blank.  Try again.")
                 continue
             if blank is True and arg_name == 'servername':
-                arg_val = 'localhost'
+                if arg_val.strip() == '':
+                    arg_val = 'localhost'
+
             return arg_val
 
     def test_connection(self, connection_string, data, edit=False):

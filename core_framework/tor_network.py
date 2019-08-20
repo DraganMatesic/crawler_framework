@@ -359,7 +359,7 @@ class TorService(DbEngine):
         self.reset_time = self.defaults.get('reset identity')
         self.connect()  # connects to database
         self.torrcs, self.bad_tors = {}, []
-        self.main()
+        self.tors = self.main()
 
     def scan_torrcs(self):
         torrcs_path = '/'.join([self.tor_path, 'TorData', 'config'])
@@ -382,8 +382,11 @@ class TorService(DbEngine):
 
     def pid_data(self, data):
         pid_file = data.get('pid_file')
-        with open(pid_file, 'r') as fr:
-            pid = fr.read().strip()
+        if os.path.exists(pid_file):
+            with open(pid_file, 'r') as fr:
+                pid = fr.read().strip()
+        else:
+            return None
         return pid
 
     def test_torccs(self):
@@ -394,6 +397,9 @@ class TorService(DbEngine):
 
             delete_data = False
             pid = self.pid_data(v)
+            if pid is None:
+                self.bad_tors.append((control_port))
+                continue
 
             # check is tor running
             tor_stat = tc.is_tor_up(pid)
@@ -455,7 +461,6 @@ class TorService(DbEngine):
 
         print(" + changing ip addres for {} tors".format(len(tor_change)))
         for k, v in tor_change.items():
-            print(k, v)
             tc = TorControl
             try:
                 tc.control_port = k
@@ -471,7 +476,8 @@ class TorService(DbEngine):
                 torrc, data_dir = v.get('torrc_path'), v.get('data_dir')
                 ipv4, control_port = v.get('ipv4'), int(v.get('control_port'))
                 pid = self.pid_data(v)
-                tc.kill_tor(pid, data_dir, torrc)
+                if pid is not None:
+                    tc.kill_tor(pid, data_dir, torrc)
                 self.delete(tor_table_name, filters={'control_port': control_port, 'ipv4': ipv4})
 
         # add new tors if rquired
@@ -492,6 +498,4 @@ class TorService(DbEngine):
             p.terminate()
             p.join()
 
-
-# if __name__ == '__main__':
-#     TorService()
+        return self.select(tor_table_name, filters={'archive': None}, columns=['pid', 'ipv4', 'ip', 'port', 'control_port'])

@@ -10,6 +10,7 @@ from core_framework.settings import *
 from core_framework.crawlers import *
 from datetime import datetime,timedelta
 from core_framework.db_engine import DbEngine
+from core_framework.tor_network import TorService
 
 
 def db_con_list():
@@ -25,6 +26,7 @@ def db_con_list():
 class NoDaemonProcess(mp.Process):
     def _get_daemon(self):
         return False
+
     def _set_daemon(self, value):
         pass
     daemon = property(_get_daemon, _set_daemon)
@@ -89,7 +91,7 @@ class ProxyServer(DbEngine):
 
     def gather(self):
         print("> ip gatherer started")
-        tick = 0
+        tick = 12000
         wait_time = 12000
         sql_lastcheck = datetime.now()
         while True:
@@ -188,14 +190,38 @@ class ProxyServer(DbEngine):
                 exit()
             sleep(1)
 
+    def tor_service(self):
+        print("> tor service started")
+        while True:
+            ts = TorService()
+            reset_time = ts.reset_time
+            print("Listing running tors")
+            for tor in ts.tors:
+                print(tor)
+
+            wait_time = reset_time*60
+            for i in range(wait_time + 1):
+                sys.stdout.write("\rwait {}/{}".format(i, wait_time))
+                sleep(1)
+            print("=======" * 10)
+            print("\n")
+
     def task_handler(self, task):
         task()
 
-    def run(self):
+    def run(self, argv):
         try:
-            tasks = [self.gather, self.ip_checker]
+            suboption = 0
+            if argv:
+                suboption = int(argv[0])
+
+            task_sets = {0: [self.gather, self.ip_checker, self.tor_service],
+                         1: [self.gather, self.ip_checker],
+                         2: [self.tor_service]}
+
+            task_set = task_sets.get(suboption)
             pool = MyPool(4)
-            pool.map(self.task_handler, tasks)
+            pool.map(self.task_handler, task_set)
             pool.close()
             pool.join()
         except KeyboardInterrupt:
@@ -209,6 +235,6 @@ if __name__ == '__main__':
 +-----------------------------------+
     ''')
     api = ProxyServer()
-    api.run()
+    api.run(sys.argv[1:])
 
 
