@@ -26,11 +26,37 @@ list_desc = [{"column_name": 'ip', "table_name": proxy_table, "column_descriptio
              {"column_name": 'pid_file', "table_name": tor_table, "column_description": "path on host machine where pid file can be found"},
              {"column_name": 'data_dir', "table_name": tor_table, "column_description": "path on host machine where tor data file can be found"},
              {"column_name": 'identity_time', "table_name": tor_table, "column_description": "last time identity of tor has been changed"},
-             {"column_name": 'date_closed', "table_name": tor_table, "column_description": "date and time from when this tor is not functional"}
+             {"column_name": 'date_closed', "table_name": tor_table, "column_description": "date and time from when this tor is not functional"},
+
+             {"column_name": 'anonymity', "table_name": anonymity_table, "column_description": "anonymity rating null, 0, 1, 2"},
+             {"column_name": 'description', "table_name": anonymity_table, "column_description": "anonymity description null = bad proxy, 0 = unprocessed, 1 = anonymous/transparent, 2 = elite"},
+             {"column_name": 'sha', "table_name": anonymity_table, "column_description": "hash value of ip and port"},
+
+             {"column_name": 'ip', "table_name": proxy_distribution_table, "column_description": "proxy ip or tor ipv4 that is in use"},
+             {"column_name": 'port', "table_name": proxy_distribution_table, "column_description": "proxy port or tor socket port that is open for above ip/ipv4"},
+             {"column_name": 'sha', "table_name": proxy_distribution_table, "column_description": "hash value of ip and port"},
+             {"column_name": 'web_base', "table_name": proxy_distribution_table, "column_description": "base url of some webpage, based on this we control that same proxy is not being used by any other program that crawls same base domain name"},
+             {"column_name": 'tic_time', "table_name": proxy_distribution_table, "column_description": "date and time when the program that use this proxy reported that it is still using this proxy. General idea is to free proxy if it is not being used more then 1h"},
+             {"column_name": 'date_created', "table_name": proxy_distribution_table, "column_description": "date and time when some proxy has began of being used"},
+
+             {"column_name": 'ip', "table_name": proxy_ban_table, "column_description": "proxy ip or tor ip(not ipv4) that is banned"},
+             {"column_name": 'port', "table_name": proxy_ban_table, "column_description": "proxy port or tor port(by default -99 represents tor) that is open for above ip"},
+             {"column_name": 'sha', "table_name": proxy_ban_table, "column_description": "hash value of ip and port"},
+             {"column_name": 'web_base', "table_name": proxy_ban_table, "column_description": "base url of some webpage where proxy is banned"},
+             {"column_name": 'date_created', "table_name": proxy_ban_table, "column_description": "date and time when some proxy has been blocked"},
 ]
+
+
+anonymity_desc = [{'anonymity': None, 'description': 'bad proxy'},
+                  {'anonymity': 0, 'description': 'unprocessed'},
+                  {'anonymity': 1, 'description': 'anonymous/transparent'},
+                  {'anonymity': 2, 'description': 'elite'}]
+
+
 
 # apply sha- hash value
 [row.update({'sha': hashlib.sha3_256(str(row).encode()).hexdigest()}) for row in list_desc]
+[row.update({'sha': hashlib.sha3_256(str(row).encode()).hexdigest()}) for row in anonymity_desc]
 
 
 class TableRowDescriptionsAll:

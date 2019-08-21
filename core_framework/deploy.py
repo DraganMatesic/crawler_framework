@@ -56,7 +56,6 @@ class Deploy(DbEngine):
                 # creates auto triggers and tables
                 BasePstg.metadata.create_all(self.engine)
 
-
             # add or remove data from tables
             session = sessionmaker(bind=self.engine)()
 
@@ -71,5 +70,15 @@ class Deploy(DbEngine):
             self.merge(session_table.__tablename__, rows, {}, delete=True)
             session.commit()
 
+            # ============================================
+            #       ANONYMITY CODES ROW DESCRIPTION
+            # ============================================
+            rows = dict()
+            session_tables = {'ora': AnonymityCodesOra, 'ms': AnonymityCodesMS, 'pstg': AnonymityCodesPstg}
+            session_table = session_tables.get(self.db_type)
+            [rows.update({len(rows): k}) for k in anonymity_desc]
+            # add new records, delete those that don't exist or changed in any way
+            self.merge(session_table.__tablename__, rows, {}, delete=True)
+            session.commit()
 
 # api = Deploy(0)

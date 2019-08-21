@@ -3,9 +3,9 @@ import sys
 import pickle
 import getpass
 from subprocess import Popen, PIPE, call
-from core_framework.settings import database_log_folder
 
 framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
+database_log_folder = r'{}\logs'.format(framework_folder)
 python_path = r'{}\py_config.pkl'.format(framework_folder)
 
 
