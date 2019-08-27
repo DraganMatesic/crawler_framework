@@ -173,6 +173,7 @@ class ProxyBanAll:
     port = Column(Integer)  # proxy port or tor socket port that is open for above ip/ipv4
     sha = Column(String(64), index=True)  # hash value of ip and port
     web_base = Column(String(1000), index=True)  # base url of some webpage where proxy is banned
+    webpage = Column(String(1000), index=True)  # specific webpage where proxy is banned
     date_created = Column(DateTime, server_default=func.now())  # date and time when some proxy has been blocked
 
 

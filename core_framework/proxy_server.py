@@ -1,16 +1,42 @@
 """Proxy server runs constantly checking existing proxies and adding new ones"""
 import pickle
-import hashlib
+import socket
 import requests
-from time import sleep
-from random import shuffle
+from abc import ABC
+import pandas as pd
+import socketserver
 import multiprocessing.pool
 import multiprocessing as mp
+from subprocess import Popen, PIPE
 from core_framework.settings import *
 from core_framework.crawlers import *
 from datetime import datetime,timedelta
 from core_framework.db_engine import DbEngine
+from core_framework.tor_network import get_ipv4
 from core_framework.tor_network import TorService
+
+# default settings for host and port where proxy server will communicate
+
+
+def get_free_port():
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp.bind(('', 0))
+    port = tcp.getsockname()[1]
+    tcp.close()
+    return port
+
+
+def set_free_port():
+    data = {'proxy_server': (get_ipv4(), get_free_port())}
+    with open(proxy_path, 'wb') as fw:
+        pickle.dump(data, fw)
+
+
+def load_proxy_server_data():
+    with open(proxy_path, 'rb') as fr:
+        data = pickle.loads(fr.read())
+        proxy_server = data.get("proxy_server")
+    return proxy_server
 
 
 def db_con_list():
@@ -41,6 +67,78 @@ class Provider:
         self.url, self.parser, self.crawler = url, parser, crawler
 
 
+class ProxyDistributor(socketserver.BaseRequestHandler):
+    proxy_dist = dict()
+
+    def handle(self):
+        # receive request
+        data = self.request.recv(1024).strip()
+
+        # evaluate incoming request
+        data_unp = pickle.loads(data)
+        command = data_unp.get('command')
+        if command == 'get proxy':
+            proxy = self.get_proxy(data_unp)
+            self.request.sendall(pickle.dumps(proxy))
+        elif command == 'pop proxy':
+            self.delete_proxy(data_unp)
+            self.request.sendall(pickle.dumps('OK'))
+        else:
+            error = "there is not such command"
+            self.request.sendall(pickle.dumps(error))
+
+    def delete_proxy(self,data_unp):
+        sha = data_unp.get('sha')
+        web_base = data_unp.get('web_base')
+        engine = DbEngine()
+        engine.connect()
+        engine.delete('proxy_dist', filters={'sha': sha, 'web_base': web_base})
+
+    def get_proxy(self, data_unp):
+        proxy_type = 'public'
+        protocol_types = ['https', 'http;https']
+
+        web_base = data_unp.get('web_base')
+        website = data_unp.get('website')
+
+        if data_unp.get('proxy_type') is not None:
+            proxy_type = data_unp.get('proxy_type')
+
+        engine = DbEngine()
+        engine.connect()
+
+        proxy = list()
+        if proxy_type == 'public':
+            proxy = engine.select('proxy_list', filters={'anonymity': 2, 'disabled': 0, 'last_checked': True, 'protocols': protocol_types})
+
+        if proxy_type == 'tor':
+            proxy = engine.select('tor_list', filters={'archive': None})
+
+        # get list of proxies in use for this web base
+        proxy_dist = engine.select('proxy_dist', filters={'web_base': web_base})
+        proxy_dist_sha = [row.get('sha') for row in proxy_dist]
+
+        # get list of proxies banned for this web base and specific website url if is not None
+        proxy_ban = engine.select('proxy_ban', filters={'web_base': web_base, 'webpage': website})
+        proxy_ban_sha = [row.get('sha') for row in proxy_ban]
+
+        # filter out all that are in this other two tables
+        proxy = [row for row in proxy if row.get('sha') not in proxy_dist_sha and row.get('sha') not in proxy_ban_sha and row.get('sha')]
+
+        # order data by average response if proxy type is public
+        if proxy_type in ['public']:
+            data = pd.DataFrame.from_records(proxy).sort_values(by=['avg_resp'])
+            proxy = data.to_dict('records')
+
+        if proxy:
+            proxy = proxy[0]
+            sha = proxy.get('sha')
+            proxy.update({'web_base': web_base, 'tic_time': datetime.now(), 'date_created': datetime.now()})
+            engine.merge('proxy_dist', {0: proxy}, filters={'sha': sha, 'web_base': web_base})
+
+        return proxy
+
+
 class Providers:
     def classic(self):
         return [
@@ -59,7 +157,7 @@ class Providers:
                 ]
 
 
-class ProxyServer(DbEngine):
+class ProxyServer(DbEngine, ABC):
     def __init__(self):
         DbEngine.__init__(self)
         self.my_ip = requests.get(ip_checker).content
@@ -206,6 +304,30 @@ class ProxyServer(DbEngine):
             print("=======" * 10)
             print("\n")
 
+    @staticmethod
+    def proxy_distributor():
+        print("> proxy distributor started")
+        set_free_port()
+        host, port = load_proxy_server_data()
+        print(f"proxy distributor runs at {host}:{port}")
+        server = socketserver.TCPServer((host, port), ProxyDistributor)
+        server.serve_forever()
+
+    def proxy_guard(self, seconds=0, minutes=30, hours=0, days=0):
+        print("> proxy guard started")
+        while True:
+            # connect to database
+            self.connect()
+
+            # Removes all proxies from proxy_dist table that are not being use over specified amount of time.
+            datetime_ = datetime.now()-timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+            self.delete('proxy_dist', filters={'tic_time': f"<={datetime_}"})
+
+            # Removes all proxies from proxy_list that are older than 15 days and are disabled.
+            datetime2 = datetime.now() - timedelta(days=15)
+            self.delete('proxy_list', filters={'date_created': f"<={datetime2}", "disabled": 1, "anonimity": None})
+            sleep(60)
+
     def task_handler(self, task):
         task()
 
@@ -215,12 +337,12 @@ class ProxyServer(DbEngine):
             if argv:
                 suboption = int(argv[0])
 
-            task_sets = {0: [self.gather, self.ip_checker, self.tor_service],
-                         1: [self.gather, self.ip_checker],
-                         2: [self.tor_service]}
+            task_sets = {0: [self.gather, self.ip_checker, self.tor_service, self.proxy_distributor, self.proxy_guard],
+                         1: [self.gather, self.ip_checker, self.proxy_distributor, self.proxy_guard],
+                         2: [self.tor_service, self.proxy_distributor, self.proxy_guard]}
 
             task_set = task_sets.get(suboption)
-            pool = MyPool(4)
+            pool = MyPool(5)
             pool.map(self.task_handler, task_set)
             pool.close()
             pool.join()

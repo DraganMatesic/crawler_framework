@@ -43,7 +43,9 @@ list_desc = [{"column_name": 'ip', "table_name": proxy_table, "column_descriptio
              {"column_name": 'port', "table_name": proxy_ban_table, "column_description": "proxy port or tor port(by default -99 represents tor) that is open for above ip"},
              {"column_name": 'sha', "table_name": proxy_ban_table, "column_description": "hash value of ip and port"},
              {"column_name": 'web_base', "table_name": proxy_ban_table, "column_description": "base url of some webpage where proxy is banned"},
+             {"column_name": 'webpage', "table_name": proxy_ban_table, "column_description": "specific webpage where proxy is banned"},
              {"column_name": 'date_created', "table_name": proxy_ban_table, "column_description": "date and time when some proxy has been blocked"},
+
 ]
 
 

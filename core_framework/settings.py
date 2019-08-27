@@ -2,12 +2,14 @@ import os
 import getpass
 from core_framework.tables.bases import *
 
+
 framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
 database_config = r'{}\db_config.pkl'.format(framework_folder)
 ua_data = r'{}\user_agent.pkl'.format(framework_folder)
 database_log_folder = r'{}\logs'.format(framework_folder)
 tor_config = r'{}\tor_config.pkl'.format(framework_folder)
-
+python_path = r'{}\py_config.pkl'.format(framework_folder)
+proxy_path = r'{}\proxy_config.pkl'.format(framework_folder)
 
 # ---------------------------------------------------------------------------
 # PROXY CARWLER SETTINGS
