@@ -10,6 +10,7 @@ class TorListAll:
     ipv4 = Column(String(64))  # ip of machine where tor is deployed
     ip = Column(String(64))  # defines what is public ip of tor
     port = Column(Integer)  # socket port to tor browser
+    sha = Column(String(64))  # hash value current tor ip and port(socket port)
     control_port = Column(Integer)  # control port to tor browser
     torrc_path = Column(String(1000))  # path on host machine where torrc.config can be found
     pid_file = Column(String(1000))  # path on host machine where pid file can be found

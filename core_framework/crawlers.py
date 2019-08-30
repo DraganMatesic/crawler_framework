@@ -12,6 +12,9 @@ from core_framework.parsers import *
 from core_framework import user_agent
 from core_framework.settings import *
 
+from abc import ABC
+from core_framework.request import Request
+from core_framework.proxy_client import ProxyClient
 
 class ClassicProxy:
     name = 'ClassicProxy'
@@ -260,3 +263,41 @@ class CrawlerChecker:
         loop.run_until_complete(future)
         result = future.result()
         return result
+
+
+class CrawlerBase(ProxyClient, ABC):
+    name = 'CrawlerBase'
+
+    def __init__(self, web_base, proxy_type=2):
+        ProxyClient.__init__(self, web_base)
+        self.requests = {}
+        self.proxy_type = proxy_type
+
+    def proxy_switch(self):
+        """Switchies from public proxy to tor and vice versa. 1 is tor, 2 is public proxy"""
+        if self.proxy_type == 2:
+            self.proxy_type = 1
+        elif self.proxy_type is None:
+            self.proxy_type = 1
+        elif self.proxy_type == 1:
+            self.proxy_type = 2
+
+    def new_request(self, proc_id=1, sha=None, new=False, verify=True):
+        proxy_names = {1: 'tor', 2: 'public'}
+        proxy_name = proxy_names.get(self.proxy_type)
+        proxy_data = self.get_proxy(proxy_type=proxy_name)
+
+        if not proxy_data:
+            self.proxy_switch()
+            proxy_name = proxy_names.get(self.proxy_type)
+            proxy_data = self.get_proxy(proxy_type=proxy_name)
+
+        r = Request(proxy_type=self.proxy_type, verify=verify, proxy_data=proxy_data)
+        if proc_id not in list(self.requests.keys()):
+            self.requests.update({proc_id: r})
+        else:
+            if new is True:
+                self.requests.update({proc_id: r})
+        if sha is not None:
+            self.release_proxy(sha)
+        return proxy_data.get('sha')

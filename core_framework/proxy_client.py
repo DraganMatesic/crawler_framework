@@ -14,10 +14,10 @@ def load_proxy_server_data():
 
 
 class ProxyClient(DbEngine, ABC):
-    def __init__(self):
+    def __init__(self, web_base):
         DbEngine.__init__(self)
         self.host, self.port = load_proxy_server_data()
-        self.web_base = 'www.nbs.rs'
+        self.web_base = web_base
         self.last_tic = {}
 
     def send_request(self, data):
@@ -52,7 +52,6 @@ class ProxyClient(DbEngine, ABC):
         last_tic = self.last_tic.get(proc_id)
         low_datetime = datetime.now() - timedelta(minutes=2)
 
-        print(last_tic, low_datetime)
         if last_tic <= low_datetime:
             self.connect()
             self.update('proxy_dist', {'web_base': self.web_base, 'sha': sha}, {'tic_time': datetime.now()})

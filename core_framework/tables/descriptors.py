@@ -21,6 +21,7 @@ list_desc = [{"column_name": 'ip', "table_name": proxy_table, "column_descriptio
              {"column_name": 'ipv4', "table_name": tor_table, "column_description": "ip of machine where tor is deployed"},
              {"column_name": 'ip', "table_name": tor_table, "column_description": "contains public ip of tor that was identified"},
              {"column_name": 'port', "table_name": tor_table, "column_description": "socket port to tor browser"},
+             {"column_name": 'sha', "table_name": tor_table, "column_description": "hash value current tor ip and port(socket port)"},
              {"column_name": 'control_port', "table_name": tor_table, "column_description": "control port to tor browser"},
              {"column_name": 'torrc_path', "table_name": tor_table, "column_description": "path on host machine where torrc.config can be found"},
              {"column_name": 'pid_file', "table_name": tor_table, "column_description": "path on host machine where pid file can be found"},

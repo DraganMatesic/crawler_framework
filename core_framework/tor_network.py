@@ -7,6 +7,7 @@ import pickle
 import psutil
 import shutil
 import zipfile
+import hashlib
 import requests
 import pandas as pd
 from time import sleep
@@ -328,8 +329,9 @@ class TorBuild(DbEngine):
             if re.search('Bootstrapped 100%', str(event)):
                 tor_ip = check_tor_ip(socket_port)
                 pid_file = r'{0}\TorData\data\{1}\pid'.format(self.tor_path, socket_port)
+                sha = hashlib.sha3_256(str(str(tor_ip) + str(socket_port)).encode()).hexdigest()
                 new_tor = {0: {'pid': pid, 'ipv4': get_ipv4(),
-                               'ip': tor_ip, 'port': socket_port,
+                               'ip': tor_ip, 'port': socket_port, 'sha': sha,
                                'control_port': control_port, 'torrc_path': torrc_path,
                                'pid_file': pid_file, 'data_dir': data_dir}}
 
@@ -469,7 +471,10 @@ class TorService(DbEngine):
                 tc.control_port = None
                 tc.create_controller(v.get('ipv4'), control_port=k)
                 tc.new_identity(v.get('port'), control_port=k)
-                self.update(tor_table_name, {'control_port': k}, {'identity_time': datetime.now()})
+
+                tor_ip = check_tor_ip(v.get('port'))
+                sha = hashlib.sha3_256(str(str(tor_ip) + str(v.get('port'))).encode()).hexdigest()
+                self.update(tor_table_name, {'control_port': k}, {'identity_time': datetime.now(), 'sha': sha})
             except Exception as e:
                 "Can't create since there is no control_auth_cookie"
                 print(str(e))
