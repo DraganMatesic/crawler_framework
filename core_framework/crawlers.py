@@ -13,7 +13,7 @@ from core_framework import user_agent
 from core_framework.settings import *
 
 from abc import ABC
-from core_framework.request import Request
+from core_framework.request import Request, AsyncRequest
 from core_framework.proxy_client import ProxyClient
 
 class ClassicProxy:
@@ -252,6 +252,10 @@ class CrawlerChecker:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, proxy=proxy, timeout=10) as response:
                     html = await response.read()
+                    if re.search(b'HTTP/1.1\s+400\s+Bad Request', html, re.MULTILINE |re.DOTALL):
+                        return 400
+                    if re.search(b'HTTP_USER_AGENT', html, re.MULTILINE |re.DOTALL) is None:
+                        return 400
                     return html
         except Exception as e:
             # print("ERROR",proxy, str(e))
@@ -293,6 +297,27 @@ class CrawlerBase(ProxyClient, ABC):
             proxy_data = self.get_proxy(proxy_type=proxy_name)
 
         r = Request(proxy_type=self.proxy_type, verify=verify, proxy_data=proxy_data)
+        if proc_id not in list(self.requests.keys()):
+            self.requests.update({proc_id: r})
+        else:
+            if new is True:
+                self.requests.update({proc_id: r})
+        if sha is not None:
+            self.release_proxy(sha)
+        return proxy_data.get('sha')
+
+    def async_new_request(self, proc_id=1, sha=None, new=False, verify=True, protocols=None):
+        proxy_names = {1: 'tor', 2: 'public'}
+        proxy_name = proxy_names.get(self.proxy_type)
+        proxy_data = self.get_proxy(proxy_type=proxy_name, protocols=protocols)
+
+        if not proxy_data:
+            self.proxy_switch()
+            proxy_name = proxy_names.get(self.proxy_type)
+            proxy_data = self.get_proxy(proxy_type=proxy_name, protocols=protocols)
+
+        r = AsyncRequest(proxy_type=self.proxy_type, verify=verify, proxy_data=proxy_data)
+
         if proc_id not in list(self.requests.keys()):
             self.requests.update({proc_id: r})
         else:

@@ -461,7 +461,7 @@ class TorService(DbEngine):
             # change tor identity
             tor_change = {records.get('control_port'): records for records in change_id.to_dict('records')}
 
-        print(" + changing ip addres for {} tors".format(len(tor_change)))
+        # print(" + changing ip addres for {} tors".format(len(tor_change)))
         for k, v in tor_change.items():
             tc = TorControl
             try:
@@ -486,7 +486,7 @@ class TorService(DbEngine):
                 self.delete(tor_table_name, filters={'control_port': control_port, 'ipv4': ipv4})
 
         # add new tors if rquired
-        print("+ Creating new tors if needed")
+        # print("+ Creating new tors if needed")
         start = time.time()
         process_timeout = 180
         p = Process(target=TorBuild)
@@ -499,7 +499,7 @@ class TorService(DbEngine):
                 break
         else:
             # We only enter this if we didn't 'break' above.
-            print("timed out on creating tor, killing Process")
+            # print("timed out on creating tor, killing Process")
             p.terminate()
             p.join()
 

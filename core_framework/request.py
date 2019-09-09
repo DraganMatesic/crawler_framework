@@ -1,9 +1,10 @@
 import re
+import aiohttp
 import requests
-import cyrtranslit
 from bs4 import BeautifulSoup
 from core_framework import user_agent
-
+from aiohttp_socks import SocksConnector
+from aiohttp import client_reqrep
 
 _request_types = {
     1: {"Info": "Get without proxies", 'Method': "get"},
@@ -18,7 +19,7 @@ _proxy_types = {1: {"name": "Tor", 'http': 'socks5://', 'https': 'socks5://'},
 
 
 class Response:
-    def __init__(self, data):
+    def __init__(self, data, html=None):
         self.data = data
         self.content = None  # html converted to bs object
         self.content_raw = None  # raw not converted to bs object
@@ -26,6 +27,7 @@ class Response:
         self.url = None
         self.headers = None
         self.json = None
+        self.html = html
         self.content_load()
 
     def content_load(self):
@@ -40,7 +42,14 @@ class Response:
             except:
                 pass
             return
-        self.content = self.data
+        elif type(self.data) == client_reqrep.ClientResponse:
+            self.url = self.data.url
+            self.content_raw = self.html
+            self.content = BeautifulSoup(self.html, 'lxml')
+            self.text = self.data.text
+            self.headers = self.data.headers
+        else:
+            self.content = self.data
 
 
 class Request:
@@ -113,15 +122,27 @@ class Request:
             'https': '{0}{1}:{2}'.format(_proxy_types.get(self.proxy_type).get('https'),self.ip, self.port)}
 
     @staticmethod
-    def test_response(response):
+    def test_response(response, html=None):
         if type(response)is dict:
             return response
         if type(response) is int:
             return {"RequestError": "BadIp"}
-        if 399 < int(response.status_code) < 500:
-            return {"RequestError": "Blocked"}
-        if int(response.status_code) > 499:
-            return {"RequestError": "Page server is down"}
+        # requests status checker
+        if type(response) is requests.models.Response:
+            if 399 < int(response.status_code) < 500:
+                return {"RequestError": "Blocked"}
+            if int(response.status_code) > 499:
+                return {"RequestError": "Page server is down"}
+        # aiohttp status checker
+        if type(response) is client_reqrep.ClientResponse:
+            if 399 < int(response.status) < 500:
+                return {"RequestError": "Blocked"}
+            if int(response.status) > 499:
+                return {"RequestError": "Page server is down"}
+
+        if html is not None:
+            if re.search(b'HTTP/1.1\s+400\s+Bad Request', html):
+                return {"RequestError": "BadIp"}
         return response
 
     def get(self, args=None):
@@ -153,3 +174,58 @@ class Request:
                     return self.ses.post(self.url, **args)
         except Exception as e:
             return {'RequestError': "{}".format(str(e))}
+
+
+class AsyncRequest(Request):
+
+    def __init__(self, proxy_type=1, verify=True, proxy_data=None):
+        Request.__init__(self, proxy_type, verify, proxy_data)
+        del self.ses  # removing request session since we don't need that here
+
+    async def go(self, url, download=False, args=None):
+        self.args = args
+        self.url = url
+        self.prepare_proxy()
+
+        method = _request_types.get(self.request_type).get('Method')
+        if args is not None:
+            html, response = await  getattr(self, method)(args=args)
+        else:
+            html, response = await  getattr(self, method)()
+
+        if download is True:
+            if type(response) is dict:
+                return response
+            return response.content
+        else:
+            resp_stat = self.test_response(response, html)
+            self.response = Response(resp_stat, html)
+        return response
+
+    async def get(self, args=None):
+            try:
+                if self.request_type is 1:
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(self.url,  timeout=self.timeout) as response:
+                            html = await response.read()
+                            return html, response
+                if self.request_type is 2:
+                    if self.proxy_type == 1:
+                        proxy = f"socks5://{self.proxy.get('http')}"
+                        connector = SocksConnector.from_url(proxy)
+                        async with aiohttp.ClientSession(connector=connector) as session:
+                            async with session.get(self.url, timeout=self.timeout, proxy_auth=None) as response:
+                                html = await response.read()
+                                return html, response
+                    if self.proxy_type in [2]:
+                        proxy = f"http://{self.proxy.get('http')}"
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(self.url, proxy=proxy, timeout=self.timeout) as response:
+                                html = await response.read()
+                                return html, response
+            except Exception as e:
+                return b'', {'RequestError': "{}".format(str(e))}
+
+
+if __name__ == '__main__':
+    api = AsyncRequest()

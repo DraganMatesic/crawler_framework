@@ -338,7 +338,7 @@ class DbEngine:
 
             except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
                 sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
-                print(traceback.extract_stack())
+                print("extract_stack", traceback.extract_stack())
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
@@ -347,6 +347,7 @@ class DbEngine:
                 continue
 
             except Exception as e:
+                print("error in merge", str(e))
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
@@ -554,6 +555,7 @@ class DbEngine:
                     col = f"table.c.{k} == '{v}'"
                     where.append(col)
                 where = f"and_({','.join(where)})".replace("'None'", 'None')
+                where = where.replace("== 'True'", '!= None')
                 statement = table.update().values(values).where(eval(where))
                 engine.execute(statement)
                 break

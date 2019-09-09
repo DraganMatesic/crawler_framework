@@ -83,9 +83,22 @@ class ProxyDistributor(socketserver.BaseRequestHandler):
         elif command == 'pop proxy':
             self.delete_proxy(data_unp)
             self.request.sendall(pickle.dumps('OK'))
+        elif command == 'bad proxy':
+            self.bad_proxy(data_unp)
+            self.request.sendall(pickle.dumps('OK'))
         else:
             error = "there is not such command"
             self.request.sendall(pickle.dumps(error))
+
+    def bad_proxy(self,data_unp):
+        sha = data_unp.get('sha')
+        web_base = data_unp.get('web_base')
+        proxy_data = data_unp.get('proxy_data')
+        web_page = data_unp.get('web_page')
+        engine = DbEngine()
+        engine.connect()
+        data = {'ip': proxy_data.get('ip'), 'port': proxy_data.get('port'), 'sha': proxy_data.get('sha'), 'web_base': proxy_data.get('web_base') , 'webpage': proxy_data.get('webpage')}
+        engine.merge('proxy_ban', {0: data}, filters={'sha': sha, 'web_base': web_base, 'webpage': web_page}, on=['sha', 'web_base', 'webpage'], update=False)
 
     def delete_proxy(self,data_unp):
         sha = data_unp.get('sha')
@@ -96,10 +109,13 @@ class ProxyDistributor(socketserver.BaseRequestHandler):
 
     def get_proxy(self, data_unp):
         proxy_type = 'public'
-        protocol_types = ['https', 'http;https']
 
         web_base = data_unp.get('web_base')
         website = data_unp.get('website')
+        protocol_types = data_unp.get('protocols')
+
+        if protocol_types is None:
+            protocol_types = ['https', 'http;https']
 
         if data_unp.get('proxy_type') is not None:
             proxy_type = data_unp.get('proxy_type')
@@ -262,6 +278,7 @@ class ProxyServer(DbEngine, ABC):
                 # check new proxies and then check old proxies that were last checked 1h ago
                 now = datetime.today() - timedelta(hours=1)
                 lists = {'new_proxies': {'anonymity': 0}, 'old_proxies': {'last_checked': f"<={now}", 'anonymity': 2}}
+
                 for list_type, filters in lists.items():
                     proxies = self.select('proxy_list', filters=filters, columns=['ip', 'port', 'sha'])
                     proxies = proxies[:100]
@@ -281,7 +298,6 @@ class ProxyServer(DbEngine, ABC):
                                 values.update({'anonymity': 1})
                         if bad_proxy is False:
                             values.update({'anonymity': 2})
-
                         self.update('proxy_list', {'sha': sha}, values)
             except Exception as e:
                 print("ip_checker", str(e))
@@ -293,16 +309,17 @@ class ProxyServer(DbEngine, ABC):
         while True:
             ts = TorService()
             reset_time = ts.reset_time
-            print("Listing running tors")
-            for tor in ts.tors:
-                print(tor)
+            # print("Listing running tors")
+            # for tor in ts.tors:
+            #     print(tor)
 
             wait_time = reset_time*60
-            for i in range(wait_time + 1):
-                sys.stdout.write("\rwait {}/{}".format(i, wait_time))
-                sleep(1)
-            print("=======" * 10)
-            print("\n")
+            sleep(wait_time)
+            # for i in range(wait_time + 1):
+            #     sys.stdout.write("\rwait {}/{}".format(i, wait_time))
+            #     sleep(1)
+            # print("=======" * 10)
+            # print("\n")
 
     @staticmethod
     def proxy_distributor():
@@ -325,7 +342,7 @@ class ProxyServer(DbEngine, ABC):
 
             # Removes all proxies from proxy_list that are older than 15 days and are disabled.
             datetime2 = datetime.now() - timedelta(days=15)
-            self.delete('proxy_list', filters={'date_created': f"<={datetime2}", "disabled": 1, "anonimity": None})
+            self.delete('proxy_list', filters={'date_created': f"<={datetime2}", "disabled": 1, "anonymity": None})
             sleep(60)
 
     def task_handler(self, task):
