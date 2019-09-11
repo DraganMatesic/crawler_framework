@@ -438,6 +438,7 @@ class DbEngine:
                 # print(session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).statement)
                 n_rows_deleted = session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).delete(synchronize_session='fetch')
                 session.commit()
+                session.flush()
                 break
 
             except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
