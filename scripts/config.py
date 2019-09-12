@@ -2,6 +2,7 @@ import os
 import sys
 import pickle
 import getpass
+import virtualenv
 from subprocess import Popen, PIPE, call
 
 framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
@@ -15,21 +16,19 @@ if os.path.exists(database_log_folder) is False:
     os.mkdir(database_log_folder)
 
 
+def is_venv():
+    return (hasattr(sys, 'real_prefix') or
+            (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
+
+
 def version_control():
     py_versions = {}
-    sys.stdout.write('\nSelect Python3 version to use\n')
-    p = Popen(['py', '--list'], stdout=PIPE)
-    while True:
-        line = p.stdout.readline()
-        if not line:
-            break
-        if sys.version_info.major < 3:
-            line = line.strip().strip('-')
-        else:
-            line = line.strip().strip(b'-').decode()
-        if line.startswith('3'):
-            line = line[:line.find('-')]
-            py_versions.update({len(py_versions): line})
+    sys.stdout.write('\nSelect Python3 global version to use or specifiy path to virtualenv\n')
+    pythons = virtualenv.get_installed_pythons()
+    for k, v in pythons.items():
+        if k.startswith('3.') and not k.__contains__('-'):
+            py_versions.update({len(py_versions): k})
+
     if not py_versions:
         sys.stdout.write('\nInstall Python 3 to be able to use this framework')
         exit()
@@ -94,8 +93,48 @@ def version_call():
         call(cmd)
 
 
-if sys.version_info.major < 3:
+if is_venv():
+    print("location of venv ", sys.prefix)
+    py_data = {'version': "venv"}
+    sys.stdout.write('\nChecking paths for this Python please wait..\n')
+    p = Popen(
+        'py -c "import sys; import os; sys.stdout.write(os.path.dirname(sys.executable))" ',
+        stdout=PIPE)
+    lines = p.stdout.readlines()
+    main_path = lines[0]
+
+    workon  = sys.prefix.rsplit("\\",1)[1]
+    if sys.version_info.major < 3:
+        pycon_path = os.path.join(main_path,  'config.py')
+    else:
+        pycon_path = os.path.join(main_path.decode(), 'config.py')
+
+    if os.path.exists(pycon_path) is False:
+        sys.stdout.write("\n Can't locate config.py at {0} \n make sure you are using python "
+                         "version where you installed this package then try again...".format(pycon_path))
+        exit()
     check_path = os.path.exists(python_path)
+    vent_activate = os.path.join(sys.prefix, 'Scripts', 'activate.bat')
+
+    if check_path is False:
+        if sys.version_info.major < 3:
+            command = '"{2}"&&"{0}" "{1}"'.format(os.path.join(main_path,  'python.exe'), vent_activate, workon)
+        else:
+            command = '"{2}"&&"{0}}" "{1}"'.format(os.path.join(main_path.decode(), 'python.exe'), vent_activate, workon)
+        py_data.update({'cmd': command})
+        with open(python_path, 'wb') as fw:
+            pickle.dump(py_data, fw)
+        print(command)
+        call(command)
+    else:
+        print("configurating folders")
+        from Scripts.configv3 import Configuration
+        Configuration()
+        exit()
+
+elif sys.version_info.major < 3:
+    check_path = os.path.exists(python_path)
+    version = None
     if check_path is False:
         while True:
             sys.stdout.write('Python 2.x is not supported do you have Python 3.x? [y/n]')
@@ -113,11 +152,13 @@ if sys.version_info.major < 3:
     else:
         version_call()
 else:
+    print("Running outside virtual environment be sure to install crawler_framework for ", sys.executable)
     try:
-        from Scripts.configv3 import *
+        from Scripts.configv3 import Configuration
         Configuration()
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as e:
         # conflict between python 3.x versions select default
+        print(str(e))
         check_path = os.path.exists(python_path)
         if check_path is False:
             sys.stdout.write('Python 3.x multiply version detected choose one where you installed crawler_framework')

@@ -68,9 +68,10 @@ class Provider:
 
 
 class ProxyDistributor(socketserver.BaseRequestHandler):
-    proxy_dist = dict()
-    engine = DbEngine()
-    engine.connect()
+    if os.path.exists(database_config):
+        proxy_dist = dict()
+        engine = DbEngine()
+        engine.connect()
 
     def handle(self):
         # receive request
@@ -369,12 +370,13 @@ if __name__ == '__main__':
 |           Proxy Server            |
 +-----------------------------------+
     ''')
-    api = ProxyServer()
-    # pool = MyPool(5)
-    # pool.map(api.task_handler, [api.proxy_distributor])
-    # pool.close()
-    # pool.join()
-    # api.run(None)
-    api.run(sys.argv[1:])
+    if os.path.exists(database_config):
+        api = ProxyServer()
+        # pool = MyPool(5)
+        # pool.map(api.task_handler, [api.proxy_distributor])
+        # pool.close()
+        # pool.join()
+        # api.run(None)
+        api.run(sys.argv[1:])
 
 

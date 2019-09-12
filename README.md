@@ -9,10 +9,11 @@ Currently works on Win OS.
 Most important thing is that you have python 3 installed on your machine. 
 
 **With virtual environment (recommended)**<br>
-First install virtual environment ```pip3.7 install virtualenvwrapper-win``` <br>
-Then create virtual environment ```mkvirtualenv myvenv``` <br>
+To be able to make virtual environment you will need to ```pip3.7 install virtualenv```
+Location of your virtual environment on WinOS shoud be ```C:\Users\YourUsername\Envs```
+Then create virtual environment ```py -3.7 -m virtualenv Envs/crawler_framework``` <br>
 By default now your virtual environment should be active if it isn't activate your virtual 
-environment by writing ```workon myvenv```  <br>
+environment by writing ```workon crawler_framework```  <br>
 Now you can install library  ```pip install crawler_framework```
 
 **Without virtual environment**<br>
