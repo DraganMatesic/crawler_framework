@@ -290,6 +290,8 @@ class TorBuild(DbEngine):
                 break
             ports = get_free_ports()
             self.create_tor(*ports)
+        self.tc.disconnect()
+        del self.tc
 
     def tor_remove(self, pid, data_dir, torrc_path):
         if pid is not None:
@@ -362,6 +364,7 @@ class TorService(DbEngine):
         self.connect()  # connects to database
         self.torrcs, self.bad_tors = {}, []
         self.tors = self.main()
+        self.disconnect()
 
     def scan_torrcs(self):
         torrcs_path = '/'.join([self.tor_path, 'TorData', 'config'])
@@ -430,7 +433,8 @@ class TorService(DbEngine):
                     "cannot connect to tor"
                     tc.kill_tor(pid, data_dir, torrc)
                     self.bad_tors.append(control_port)
-
+            tc.disconnect()
+            del tc
         # delete those from database who failed test
         self.delete(tor_table_name, filters={'control_port': self.bad_tors, 'ipv4': get_ipv4()})
 
@@ -475,6 +479,8 @@ class TorService(DbEngine):
                 tor_ip = check_tor_ip(v.get('port'))
                 sha = hashlib.sha3_256(str(str(tor_ip) + str(v.get('port'))).encode()).hexdigest()
                 self.update(tor_table_name, {'control_port': k}, {'identity_time': datetime.now(), 'sha': sha})
+                tc.disconnect()
+                del tc
             except Exception as e:
                 "Can't create since there is no control_auth_cookie"
                 print(str(e))
@@ -484,6 +490,8 @@ class TorService(DbEngine):
                 if pid is not None:
                     tc.kill_tor(pid, data_dir, torrc)
                 self.delete(tor_table_name, filters={'control_port': control_port, 'ipv4': ipv4})
+                tc.disconnect()
+                del tc
 
         # add new tors if rquired
         # print("+ Creating new tors if needed")

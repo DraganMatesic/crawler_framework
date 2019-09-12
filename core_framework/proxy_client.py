@@ -19,6 +19,7 @@ class ProxyClient(DbEngine, ABC):
         self.host, self.port = load_proxy_server_data()
         self.web_base = web_base
         self.last_tic = {}
+        self.connect()
 
     def send_request(self, data):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -58,5 +59,4 @@ class ProxyClient(DbEngine, ABC):
         low_datetime = datetime.now() - timedelta(minutes=2)
 
         if last_tic <= low_datetime:
-            self.connect()
             self.update('proxy_dist', {'web_base': self.web_base, 'sha': sha}, {'tic_time': datetime.now()})

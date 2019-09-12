@@ -69,6 +69,8 @@ class Provider:
 
 class ProxyDistributor(socketserver.BaseRequestHandler):
     proxy_dist = dict()
+    engine = DbEngine()
+    engine.connect()
 
     def handle(self):
         # receive request
@@ -95,17 +97,13 @@ class ProxyDistributor(socketserver.BaseRequestHandler):
         web_base = data_unp.get('web_base')
         proxy_data = data_unp.get('proxy_data')
         web_page = data_unp.get('web_page')
-        engine = DbEngine()
-        engine.connect()
         data = {'ip': proxy_data.get('ip'), 'port': proxy_data.get('port'), 'sha': proxy_data.get('sha'), 'web_base': proxy_data.get('web_base') , 'webpage': proxy_data.get('webpage')}
-        engine.merge('proxy_ban', {0: data}, filters={'sha': sha, 'web_base': web_base, 'webpage': web_page}, on=['sha', 'web_base', 'webpage'], update=False)
+        self.engine.merge('proxy_ban', {0: data}, filters={'sha': sha, 'web_base': web_base, 'webpage': web_page}, on=['sha', 'web_base', 'webpage'], update=False)
 
     def delete_proxy(self,data_unp):
         sha = data_unp.get('sha')
         web_base = data_unp.get('web_base')
-        engine = DbEngine()
-        engine.connect()
-        engine.delete('proxy_dist', filters={'sha': sha, 'web_base': web_base})
+        self.engine.delete('proxy_dist', filters={'sha': sha, 'web_base': web_base})
 
     def get_proxy(self, data_unp):
         proxy_type = 'public'
@@ -120,22 +118,19 @@ class ProxyDistributor(socketserver.BaseRequestHandler):
         if data_unp.get('proxy_type') is not None:
             proxy_type = data_unp.get('proxy_type')
 
-        engine = DbEngine()
-        engine.connect()
-
         proxy = list()
         if proxy_type == 'public':
-            proxy = engine.select('proxy_list', filters={'anonymity': 2, 'disabled': 0, 'last_checked': True, 'protocols': protocol_types})
+            proxy = self.engine.select('proxy_list', filters={'anonymity': 2, 'disabled': 0, 'last_checked': True, 'protocols': protocol_types})
 
         if proxy_type == 'tor':
-            proxy = engine.select('tor_list', filters={'archive': None})
+            proxy = self.engine.select('tor_list', filters={'archive': None})
 
         # get list of proxies in use for this web base
-        proxy_dist = engine.select('proxy_dist', filters={'web_base': web_base})
+        proxy_dist = self.engine.select('proxy_dist', filters={'web_base': web_base})
         proxy_dist_sha = [row.get('sha') for row in proxy_dist]
 
         # get list of proxies banned for this web base and specific website url if is not None
-        proxy_ban = engine.select('proxy_ban', filters={'web_base': web_base, 'webpage': website})
+        proxy_ban = self.engine.select('proxy_ban', filters={'web_base': web_base, 'webpage': website})
         proxy_ban_sha = [row.get('sha') for row in proxy_ban]
 
         # filter out all that are in this other two tables
@@ -150,7 +145,7 @@ class ProxyDistributor(socketserver.BaseRequestHandler):
             proxy = proxy[0]
             sha = proxy.get('sha')
             proxy.update({'web_base': web_base, 'tic_time': datetime.now(), 'date_created': datetime.now()})
-            engine.merge('proxy_dist', {0: proxy}, filters={'sha': sha, 'web_base': web_base})
+            self.engine.merge('proxy_dist', {0: proxy}, filters={'sha': sha, 'web_base': web_base})
 
         return proxy
 
@@ -208,6 +203,7 @@ class ProxyServer(DbEngine, ABC):
         tick = 12000
         wait_time = 12000
         sql_lastcheck = datetime.now()
+        self.connect()
         while True:
             try:
                 # check how many proxies that are elite exist in table.. if any from protocols is below 80 and wait time passed at least 20min
@@ -217,7 +213,6 @@ class ProxyServer(DbEngine, ABC):
                 gather_status = False
                 # to not overload server with constant select we will check every 5min
                 if (datetime.now() - sql_lastcheck).total_seconds() > 300:
-                    self.connect()
                     for protocol in protocols:
                         count = len(self.select('proxy_list', filters={'anonymity': 2, 'protocols': protocol}))
                         if count < 80 and tick > 1200:
@@ -226,7 +221,6 @@ class ProxyServer(DbEngine, ABC):
 
                 # if gather status is True or more than 12000 sec has passed crawl proxy webpages again
                 if gather_status is True or tick > wait_time:
-                    self.connect()
                     tick = 0
                     existing_proxies = [r.get('sha') for r in self.select('proxy_list', columns=['sha'])]
 
@@ -267,14 +261,13 @@ class ProxyServer(DbEngine, ABC):
                         self.insert('proxy_error_log', proxy_error_log)
             except Exception as e:
                 print("gather", str(e))
-                exit()
             sleep(1)
 
     def ip_checker(self):
         print("> ip checker started")
+        self.connect()
         while True:
             try:
-                self.connect()
                 # check new proxies and then check old proxies that were last checked 1h ago
                 now = datetime.today() - timedelta(hours=1)
                 lists = {'new_proxies': {'anonymity': 0}, 'old_proxies': {'last_checked': f"<={now}", 'anonymity': 2}}
@@ -301,7 +294,6 @@ class ProxyServer(DbEngine, ABC):
                         self.update('proxy_list', {'sha': sha}, values)
             except Exception as e:
                 print("ip_checker", str(e))
-                exit()
             sleep(1)
 
     def tor_service(self):
@@ -312,7 +304,8 @@ class ProxyServer(DbEngine, ABC):
             # print("Listing running tors")
             # for tor in ts.tors:
             #     print(tor)
-
+            ts.disconnect()
+            del ts
             wait_time = reset_time*60
             sleep(wait_time)
             # for i in range(wait_time + 1):
@@ -332,18 +325,21 @@ class ProxyServer(DbEngine, ABC):
 
     def proxy_guard(self, seconds=0, minutes=30, hours=0, days=0):
         print("> proxy guard started")
+        # connect to database
+        self.connect()
         while True:
-            # connect to database
-            self.connect()
+            try:
+                # Removes all proxies from proxy_dist table that are not being use over specified amount of time.
+                datetime_ = datetime.now()-timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
+                self.delete('proxy_dist', filters={'tic_time': f"<={datetime_}"})
 
-            # Removes all proxies from proxy_dist table that are not being use over specified amount of time.
-            datetime_ = datetime.now()-timedelta(days=days, hours=hours, minutes=minutes, seconds=seconds)
-            self.delete('proxy_dist', filters={'tic_time': f"<={datetime_}"})
+                # Removes all proxies from proxy_list that are older than 15 days and are disabled.
+                datetime2 = datetime.now() - timedelta(days=15)
+                self.delete('proxy_list', filters={'date_created': f"<={datetime2}", "disabled": 1, "anonymity": None})
 
-            # Removes all proxies from proxy_list that are older than 15 days and are disabled.
-            datetime2 = datetime.now() - timedelta(days=15)
-            self.delete('proxy_list', filters={'date_created': f"<={datetime2}", "disabled": 1, "anonymity": None})
-            sleep(60)
+                sleep(60)
+            except Exception as e:
+                print("proxy_guard", str(e))
 
     def task_handler(self, task):
         task()
@@ -374,6 +370,11 @@ if __name__ == '__main__':
 +-----------------------------------+
     ''')
     api = ProxyServer()
+    # pool = MyPool(5)
+    # pool.map(api.task_handler, [api.proxy_distributor])
+    # pool.close()
+    # pool.join()
+    # api.run(None)
     api.run(sys.argv[1:])
 
 

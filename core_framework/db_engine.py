@@ -79,7 +79,7 @@ class DbEngine:
             # print(connection_string)
             self.engine = create_engine(connection_string, **kwargs)
             try:
-                self.engine.connect()
+                self.connection = self.engine.connect()
             except Exception as e:
                 sys.stdout.write(f"\nCant connect on specified connection. {str(e)}")
                 error_info = traceback.extract_stack(limit=1)[0]
@@ -87,6 +87,9 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 return 400
             return self.engine
+
+    def disconnect(self):
+        self.connection.close()
 
     # Predefined methods that are are used in 99% cases while communicating with db
     @staticmethod
@@ -184,7 +187,8 @@ class DbEngine:
                     else:
                         results = session.query(DbTable).statement
                     db_df = pd.read_sql(results, engine, index_col=self.primary_key)
-
+                    session.commit()
+                    session.flush()
                 else:
                     results = sql
                     db_df = pd.read_sql(results, engine)
@@ -200,6 +204,7 @@ class DbEngine:
                     final_select = db_df.to_dict('records')
                 else:
                     final_select = db_df.to_dict()
+
                 return final_select
 
             except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
@@ -559,7 +564,18 @@ class DbEngine:
                 where = where.replace("== 'True'", '!= None')
                 statement = table.update().values(values).where(eval(where))
                 engine.execute(statement)
+
                 break
+
+            except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
+                sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
+                print(traceback.extract_stack())
+                error_info = traceback.extract_stack(limit=1)[0]
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                sleep(randrange(5, 20))
+                self.connect()
+                continue
 
             except AttributeError as e:
                 error_info = traceback.extract_stack(limit=1)[0]
