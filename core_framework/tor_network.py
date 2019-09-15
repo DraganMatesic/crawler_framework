@@ -16,10 +16,14 @@ from datetime import datetime, timedelta
 from subprocess import Popen, PIPE
 from multiprocessing import Process
 from stem.control import Controller
-from core_framework import user_agent
-from core_framework.settings import *
-from core_framework.db_engine import DbEngine
-
+try:
+    from core_framework import user_agent
+    from core_framework.settings import *
+    from core_framework.db_engine import DbEngine
+except:
+    import user_agent
+    from settings import *
+    from db_engine import DbEngine
 
 def install(install_path=tor_dir):
     """

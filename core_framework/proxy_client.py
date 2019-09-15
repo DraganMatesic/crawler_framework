@@ -2,9 +2,12 @@ import socket
 import pickle
 from abc import ABC
 from datetime import datetime, timedelta
-from core_framework.db_engine import DbEngine
-from core_framework.settings import proxy_path
-
+try:
+    from core_framework.db_engine import DbEngine
+    from core_framework.settings import proxy_path
+except:
+    from db_engine import DbEngine
+    from settings import proxy_path
 
 def load_proxy_server_data():
     with open(proxy_path, 'rb') as fr:

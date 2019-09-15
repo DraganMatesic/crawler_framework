@@ -2,7 +2,10 @@ import re
 import aiohttp
 import requests
 from bs4 import BeautifulSoup
-from core_framework import user_agent
+try:
+    from core_framework import user_agent
+except:
+    import user_agent
 from aiohttp_socks import SocksConnector
 from aiohttp import client_reqrep
 

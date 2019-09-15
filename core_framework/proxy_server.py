@@ -8,12 +8,19 @@ import socketserver
 import multiprocessing.pool
 import multiprocessing as mp
 from subprocess import Popen, PIPE
-from core_framework.settings import *
-from core_framework.crawlers import *
-from datetime import datetime,timedelta
-from core_framework.db_engine import DbEngine
-from core_framework.tor_network import get_ipv4
-from core_framework.tor_network import TorService
+from datetime import datetime, timedelta
+try:
+    from core_framework.settings import *
+    from core_framework.crawlers import *
+    from core_framework.db_engine import DbEngine
+    from core_framework.tor_network import get_ipv4
+    from core_framework.tor_network import TorService
+except:
+    from settings import *
+    from crawlers import *
+    from db_engine import DbEngine
+    from tor_network import get_ipv4
+    from tor_network import TorService
 
 # default settings for host and port where proxy server will communicate
 

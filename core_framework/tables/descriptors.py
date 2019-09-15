@@ -2,6 +2,7 @@ import hashlib
 from sqlalchemy import *
 from core_framework.tables.bases import *
 
+
 list_desc = [{"column_name": 'ip', "table_name": proxy_table, "column_description": "proxy ip we are going to use"},
              {"column_name": 'port', "table_name": proxy_table, "column_description": "proxy port that is open for above ip"},
              {"column_name": 'sha', "table_name": proxy_table, "column_description": "hash value of ip and port"},

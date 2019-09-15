@@ -1,6 +1,9 @@
 import os
 import getpass
-from core_framework.tables.bases import *
+try:
+    from core_framework.tables.bases import *
+except:
+    from tables.bases import *
 
 
 framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())

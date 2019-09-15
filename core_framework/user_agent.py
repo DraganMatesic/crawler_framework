@@ -4,7 +4,10 @@ import json
 import pickle
 import requests
 from datetime import datetime
-from core_framework.settings import *
+try:
+    from core_framework.settings import *
+except:
+    from settings import *
 
 
 def get():

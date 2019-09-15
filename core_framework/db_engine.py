@@ -7,7 +7,10 @@ import hashlib
 import pandas as pd
 from time import sleep
 from random import randrange
-from core_framework.settings import *
+try:
+    from core_framework.settings import *
+except:
+    from settings import *
 import traceback
 
 import sqlalchemy
