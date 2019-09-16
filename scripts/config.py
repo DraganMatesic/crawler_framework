@@ -5,7 +5,7 @@ import getpass
 import virtualenv
 from subprocess import Popen, PIPE, call
 
-framework_folder= r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
+framework_folder = r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
 database_log_folder = r'{}\logs'.format(framework_folder)
 python_path = r'{}\py_config.pkl'.format(framework_folder)
 
@@ -15,11 +15,20 @@ if os.path.exists(framework_folder) is False:
 if os.path.exists(database_log_folder) is False:
     os.mkdir(database_log_folder)
 
+p = Popen('py -c "import sys; import os; sys.stdout.write(sys.executable)" ', stdout=PIPE)
+lines = p.stdout.readlines()
+real_executable = lines[0]
+
+p = Popen('py -c "import sys; import os; sys.stdout.write(sys.prefix)" ', stdout=PIPE)
+lines = p.stdout.readlines()
+lib_path = lines[0]
+
 
 def is_venv():
+    if sys.version_info.major < 3:
+        return real_executable != sys.executable
     return (hasattr(sys, 'real_prefix') or
             (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
-
 
 def version_control():
     py_versions = {}
@@ -94,16 +103,18 @@ def version_call():
 
 
 if is_venv():
-    print("location of venv ", sys.prefix)
+    print("location of venv ", lib_path)
     py_data = {'version': "venv"}
     sys.stdout.write('\nChecking paths for this Python please wait..\n')
-    p = Popen(
-        'py -c "import sys; import os; sys.stdout.write(os.path.dirname(sys.executable))" ',
-        stdout=PIPE)
+    p = Popen('py -c "import sys; import os; sys.stdout.write(os.path.dirname(sys.executable))"',stdout=PIPE)
     lines = p.stdout.readlines()
     main_path = lines[0]
 
-    workon  = sys.prefix.rsplit("\\",1)[1]
+    if type(lib_path) == bytes:
+        lib_path = lib_path.decode()
+
+    workon = lib_path.rsplit("\\", 1)[1]
+
     if sys.version_info.major < 3:
         pycon_path = os.path.join(main_path,  'config.py')
     else:
@@ -114,22 +125,25 @@ if is_venv():
                          "version where you installed this package then try again...".format(pycon_path))
         exit()
     check_path = os.path.exists(python_path)
-    vent_activate = os.path.join(sys.prefix, 'Scripts', 'activate.bat')
+    vent_activate = os.path.join(lib_path, 'Scripts', 'activate.bat')
 
     if check_path is False:
         if sys.version_info.major < 3:
-            command = '"{2}"&&"{0}" "{1}"'.format(os.path.join(main_path,  'python.exe'), vent_activate, workon)
+            command = '"{0}"&&"{2}" "{1}"'.format(vent_activate, pycon_path, real_executable)
         else:
-            command = '"{2}"&&"{0}}" "{1}"'.format(os.path.join(main_path.decode(), 'python.exe'), vent_activate, workon)
+            command = '"{0}"&&"{2}" "{1}"'.format(vent_activate, pycon_path, real_executable)
         py_data.update({'cmd': command})
         with open(python_path, 'wb') as fw:
             pickle.dump(py_data, fw)
         print(command)
         call(command)
     else:
-        print("configurating folders")
-        from Scripts.configv3 import Configuration
-        Configuration()
+        if sys.version_info.major < 3:
+            version_call()
+        else:
+            print("configurating folders")
+            from Scripts.configv3 import Configuration
+            Configuration()
         exit()
 
 elif sys.version_info.major < 3:
