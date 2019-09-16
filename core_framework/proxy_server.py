@@ -75,12 +75,16 @@ class Provider:
 
 
 class ProxyDistributor(socketserver.BaseRequestHandler):
-    if os.path.exists(database_config):
-        proxy_dist = dict()
-        engine = DbEngine()
-        engine.connect()
+    conn_established = False
+
+    def make_connection(self):
+        self.proxy_dist = dict()
+        self.engine = DbEngine()
+        self.engine.connect()
 
     def handle(self):
+        if self.conn_established is False:
+            self.make_connection()
         # receive request
         data = self.request.recv(1024).strip()
 
