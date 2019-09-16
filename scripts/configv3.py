@@ -8,6 +8,7 @@ import cx_Oracle
 import sqlalchemy
 from sys import argv
 from datetime import datetime
+from subprocess import Popen, PIPE
 from sqlalchemy import create_engine
 from distutils.sysconfig import get_python_lib
 from core_framework.deploy import Deploy
@@ -106,7 +107,8 @@ def bool_handler():
 
 
 class Configuration:
-    def __init__(self):
+    def __init__(self, venv=False):
+        self.venv = venv
         create_framework_folders()
         self.commands()
 
@@ -147,9 +149,17 @@ class Configuration:
                     api = ProxyServer()
                     program_location = api.location
                     # getting default interpreter
-                    py_ver_info = sys.version_info
-                    py_version = f"-{py_ver_info[0]}.{py_ver_info[1]}"
-                    Popen(['py', py_version, program_location, str(suboption)])
+                    if self.venv is False:
+                        py_ver_info = sys.version_info
+                        py_version = f"-{py_ver_info[0]}.{py_ver_info[1]}"
+                        Popen(['py', py_version, program_location, str(suboption)])
+                    else:
+                        p = Popen('py -c "import sys; import os; sys.stdout.write(sys.executable)" ', stdout=PIPE)
+                        lines = p.stdout.readlines()
+                        real_executable = lines[0]
+                        if type(real_executable) == bytes:
+                            real_executable = real_executable.decode()
+                        Popen([real_executable, program_location, str(suboption)])
                     del api
                 except Exception as e:
                     print(str(e))
@@ -527,7 +537,6 @@ class DatabaseConfiguration():
                     sha_new =  data.get('conn_sha')
                     current_sha = sha_new.get(conection_id)
                     if sha != current_sha:
-
                         connections_new = data.get('connections')
                         connections_new.update({conection_id: new_data})
                         sha_new.update({conection_id: sha})

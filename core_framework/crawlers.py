@@ -10,19 +10,11 @@ from urllib.parse import *
 from lxml import html as lh
 from abc import ABC
 
-try:
-    from core_framework.parsers import *
-    from core_framework import user_agent
-    from core_framework.settings import *
-    from core_framework.request import Request, AsyncRequest
-    from core_framework.proxy_client import ProxyClient
-except:
-    from parsers import *
-    import user_agent
-    from settings import *
-    from request import Request, AsyncRequest
-    from proxy_client import ProxyClient
-
+from core_framework.parsers import *
+from core_framework import user_agent
+from core_framework.settings import *
+from core_framework.request import Request, AsyncRequest
+from core_framework.proxy_client import ProxyClient
 
 
 class ClassicProxy:

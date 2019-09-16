@@ -142,8 +142,11 @@ if is_venv():
             version_call()
         else:
             print("configurating folders")
-            from Scripts.configv3 import Configuration
-            Configuration()
+            if type(real_executable) is bytes:
+                real_executable = real_executable.decode()
+            call('"{}" -c "from Scripts.configv3 import Configuration; Configuration(venv=True)"'.format(real_executable))
+            # from Scripts.configv3 import Configuration
+            # Configuration()
         exit()
 
 elif sys.version_info.major < 3:

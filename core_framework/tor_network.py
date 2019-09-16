@@ -138,7 +138,6 @@ def check_tor_ip(socket_port, tor_loc_ip=get_ipv4()):
     ses.headers.update(user_agent.load())
     r = ses.get(tor_ip_check, proxies=proxies)
     html = r.content
-
     tor_ip = None
     tor_node = re.search(r'''Your IP address appears to be:\s*<strong>(.*?)</strong>''', html.decode(), re.MULTILINE | re.DOTALL | re.IGNORECASE)
     if tor_node is not None:
