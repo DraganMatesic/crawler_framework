@@ -184,6 +184,7 @@ class AsyncRequest(Request):
     def __init__(self, proxy_type=1, verify=True, proxy_data=None):
         Request.__init__(self, proxy_type, verify, proxy_data)
         del self.ses  # removing request session since we don't need that here
+        self.async_ses = aiohttp.ClientSession()
 
     async def go(self, url, download=False, args=None):
         self.args = args
@@ -191,10 +192,11 @@ class AsyncRequest(Request):
         self.prepare_proxy()
 
         method = _request_types.get(self.request_type).get('Method')
+        print(method)
         if args is not None:
-            html, response = await  getattr(self, method)(args=args)
+            html, response = await getattr(self, method)(args=args)
         else:
-            html, response = await  getattr(self, method)()
+            html, response = await getattr(self, method)()
 
         if download is True:
             if type(response) is dict:
@@ -204,6 +206,37 @@ class AsyncRequest(Request):
             resp_stat = self.test_response(response, html)
             self.response = Response(resp_stat, html)
         return response
+
+    async def get2(self, args=None):
+        """shared session for chain requests GET>POST>GET..."""
+        if self.request_type is 1:
+            # GET method without proxy
+            async with self.async_ses.get(self.url, timeout=self.timeout) as response:
+                html = await response.read()
+                return html, response
+
+        if self.request_type is 2:
+            # GET method with proxy
+            if self.proxy_type == 1:
+                # Proxy type is Tor socks
+                ""
+
+    async def post2(self, args=None):
+        """shared session for chain requests GET>POST>GET..."""
+        if args is None:
+            args = {}
+        args.update({"timeout": self.timeout})
+        if self.args is not None:
+            args.update(self.args)
+        # post without proxies
+        if self.request_type is 3:
+            if args.get('data') is None:
+                print(self.payload)
+                async with self.async_ses.post(self.url, data=self.payload, timeout=self.timeout) as response:
+                    html = await response.read()
+                    print(html)
+                    return html, response
+
 
     async def get(self, args=None):
             try:
@@ -229,6 +262,64 @@ class AsyncRequest(Request):
             except Exception as e:
                 return b'', {'RequestError': "{}".format(str(e))}
 
+    async def post(self, args=None):
+            try:
+                if args is None:
+                    args = {}
+                args.update({"timeout": self.timeout})
+                if self.args is not None:
+                    args.update(self.args)
+                # post without proxies
+                if self.request_type is 3:
+                    if args.get('data') is None:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.post(self.url, data=self.payload, timeout=self.timeout) as response:
+                                html = await response.read()
+                                return html, response
+                    if args.get('data') is not None:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.post(self.url, timeout=self.timeout) as response:
+                                html = await response.read()
+                                return html, response
+                # post with proxies
+                if self.request_type is 4:
+                    # if proxy is tor
+                    if self.proxy_type == 1:
+                        proxy = f"socks5://{self.proxy.get('http')}"
+                        connector = SocksConnector.from_url(proxy)
+                        # if payload is not required
+                        if args.get('data') is None:
+                            async with aiohttp.ClientSession(connector=connector) as session:
+                                async with session.post(self.url, data=self.payload, timeout=self.timeout, proxy_auth=None) as response:
+                                    html = await response.read()
+                                    return html, response
+                        # if payload is required
+                        if args.get('data') is not None:
+                            async with aiohttp.ClientSession(connector=connector) as session:
+                                async with session.post(self.url, timeout=self.timeout, proxy_auth=None) as response:
+                                    html = await response.read()
+                                    return html, response
+
+                    # if proxy is public proxy
+                    if self.proxy_type in [2]:
+                        print(args, self.payload)
+                        proxy = f"http://{self.proxy.get('http')}"
+                        # if payload is not required
+                        if args.get('data') is None:
+                            async with aiohttp.ClientSession() as session:
+                                async with session.post(self.url, data=self.payload, timeout=self.timeout, proxy=proxy) as response:
+                                    html = await response.read()
+                                    print(html)
+                                    return html, response
+                        # if payload is required
+                        if args.get('data') is not None:
+                            async with aiohttp.ClientSession() as session:
+                                async with session.post(self.url, timeout=self.timeout, proxy=proxy) as response:
+                                    html = await response.read()
+                                    return html, response
+
+            except Exception as e:
+                return b'', {'RequestError': "{}".format(str(e))}
 
 if __name__ == '__main__':
     api = AsyncRequest()
