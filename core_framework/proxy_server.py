@@ -266,7 +266,11 @@ class ProxyServer(DbEngine, ABC):
                     if proxy_error_log :
                         self.insert('proxy_error_log', proxy_error_log)
             except Exception as e:
-                print("gather", str(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                e = '======================================\n ERRORS: \n +error type: %s \n +py location: %s \n +error line: %s \n +error description: %s "\n"  \n======================================' % (
+                    str(exc_type), os.path.abspath(fname), exc_tb.tb_lineno, str(e))
+                print("proxy_server.py gather error", str(e))
             sleep(1)
 
     def ip_checker(self):
@@ -377,11 +381,6 @@ if __name__ == '__main__':
     ''')
     if os.path.exists(database_config):
         api = ProxyServer()
-        # pool = MyPool(5)
-        # pool.map(api.task_handler, [api.proxy_distributor])
-        # pool.close()
-        # pool.join()
-        # api.run(None)
         api.run(sys.argv[1:])
 
 

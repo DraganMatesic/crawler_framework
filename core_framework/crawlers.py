@@ -311,7 +311,6 @@ class CrawlerBase(ProxyClient, ABC):
         proxy_names = {1: 'tor', 2: 'public'}
         proxy_name = proxy_names.get(self.proxy_type)
         proxy_data = self.get_proxy(proxy_type=proxy_name, protocols=protocols)
-
         if not proxy_data:
             self.proxy_switch()
             proxy_name = proxy_names.get(self.proxy_type)
