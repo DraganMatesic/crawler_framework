@@ -273,7 +273,7 @@ class AsyncRequest(Request):
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             e = 'request.py, def get |+error type: %s | py location: %s | +error line: %s | +error description: %s' % (str(exc_type), os.path.abspath(fname), exc_tb.tb_lineno, str(e))
-            return {'RequestError': "{}".format(str(e))}
+            return '', {'RequestError': "{}".format(str(e))}
 
     async def post(self, args=None):
         """shared session for chain requests GET>POST>GET..."""
@@ -330,7 +330,7 @@ class AsyncRequest(Request):
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             e = 'request.py, def post | +error type: %s | py location: %s | +error line: %s | +error description: %s' % (str(exc_type), os.path.abspath(fname), exc_tb.tb_lineno, str(e))
             print(e)
-            return {'RequestError': "{}".format(str(e))}
+            return '', {'RequestError': "{}".format(str(e))}
 
 
 if __name__ == '__main__':

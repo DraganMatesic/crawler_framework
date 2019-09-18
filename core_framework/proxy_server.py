@@ -69,34 +69,30 @@ class Provider:
 
 
 class ProxyDistributor(socketserver.BaseRequestHandler):
-    conn_established = False
-
-    def make_connection(self):
-        self.proxy_dist = dict()
-        self.engine = DbEngine()
-        self.engine.connect()
+    engine = None
 
     def handle(self):
-        if self.conn_established is False:
-            self.make_connection()
-        # receive request
-        data = self.request.recv(1024).strip()
+        try:
+            # receive request
+            data = self.request.recv(1024).strip()
 
-        # evaluate incoming request
-        data_unp = pickle.loads(data)
-        command = data_unp.get('command')
-        if command == 'get proxy':
-            proxy = self.get_proxy(data_unp)
-            self.request.sendall(pickle.dumps(proxy))
-        elif command == 'pop proxy':
-            self.delete_proxy(data_unp)
-            self.request.sendall(pickle.dumps('OK'))
-        elif command == 'bad proxy':
-            self.bad_proxy(data_unp)
-            self.request.sendall(pickle.dumps('OK'))
-        else:
-            error = "there is not such command"
-            self.request.sendall(pickle.dumps(error))
+            # evaluate incoming request
+            data_unp = pickle.loads(data)
+            command = data_unp.get('command')
+            if command == 'get proxy':
+                proxy = self.get_proxy(data_unp)
+                self.request.sendall(pickle.dumps(proxy))
+            elif command == 'pop proxy':
+                self.delete_proxy(data_unp)
+                self.request.sendall(pickle.dumps('OK'))
+            elif command == 'bad proxy':
+                self.bad_proxy(data_unp)
+                self.request.sendall(pickle.dumps('OK'))
+            else:
+                error = "there is not such command"
+                self.request.sendall(pickle.dumps(error))
+        except:
+            pass
 
     def bad_proxy(self,data_unp):
         sha = data_unp.get('sha')
@@ -209,7 +205,7 @@ class ProxyServer(DbEngine, ABC):
         tick = 12000
         wait_time = 12000
         sql_lastcheck = datetime.now()
-        self.connect()
+        self.connect(connect_args={"application_name": "proxy_server/gather"})
         while True:
             try:
                 # check how many proxies that are elite exist in table.. if any from protocols is below 80 and wait time passed at least 20min
@@ -275,7 +271,7 @@ class ProxyServer(DbEngine, ABC):
 
     def ip_checker(self):
         print("> ip checker started")
-        self.connect()
+        self.connect(connect_args={"application_name": "proxy_server/ip_checker"})
         while True:
             try:
                 # check new proxies and then check old proxies that were last checked 1h ago
@@ -317,6 +313,7 @@ class ProxyServer(DbEngine, ABC):
             ts.disconnect()
             del ts
             wait_time = reset_time*60
+            # wait_time = reset_time
             sleep(wait_time)
             # for i in range(wait_time + 1):
             #     sys.stdout.write("\rwait {}/{}".format(i, wait_time))
@@ -330,13 +327,18 @@ class ProxyServer(DbEngine, ABC):
         set_free_port()
         host, port = load_proxy_server_data()
         print(f"proxy distributor runs at {host}:{port}")
+
+        engine = DbEngine()
+        engine.connect(connect_args={"application_name": "proxy_server/ProxyDistributor"})
+
+        ProxyDistributor.engine = engine
         server = socketserver.TCPServer((host, port), ProxyDistributor)
         server.serve_forever()
 
     def proxy_guard(self, seconds=0, minutes=30, hours=0, days=0):
         print("> proxy guard started")
         # connect to database
-        self.connect()
+        self.connect(connect_args={"application_name": "proxy_server/proxy_guard"})
         while True:
             try:
                 # Removes all proxies from proxy_dist table that are not being use over specified amount of time.

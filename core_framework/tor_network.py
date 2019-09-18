@@ -159,7 +159,7 @@ class TorControl(DbEngine):
 
     def __init__(self):
         DbEngine.__init__(self)
-        self.connect()
+        self.connect(connect_args={"application_name": "tor_network/TorControl"})
         self.SocketOriginal = socket.socket
         self.socket_port = self.socket_port
         self.control_port = self.control_port
@@ -284,7 +284,7 @@ class TorBuild(DbEngine):
         self.defaults = load_defaults()
         self.tormax = self.defaults.get('number of tor instances')
         self.tor_path = self.defaults.get('tor_path')
-        self.connect()
+        self.connect(connect_args={"application_name": "tor_network/TorBuild"})
         self.tc = TorControl()
         self.tors = {}
         while True:
@@ -364,7 +364,7 @@ class TorService(DbEngine):
         self.tormax = self.defaults.get('number of tor instances')
         self.tor_path = self.defaults.get('tor_path')
         self.reset_time = self.defaults.get('reset identity')
-        self.connect()  # connects to database
+        self.connect(connect_args={"application_name": "tor_network/TorService"})
         self.torrcs, self.bad_tors = {}, []
         self.tors = self.main()
         self.disconnect()

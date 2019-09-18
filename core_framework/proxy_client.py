@@ -22,7 +22,7 @@ class ProxyClient(DbEngine, ABC):
         self.host, self.port = load_proxy_server_data()
         self.web_base = web_base
         self.last_tic = {}
-        self.connect()
+        self.connect(connect_args={"application_name": "proxy_client.py/ProxyClient"})
 
     def send_request(self, data):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

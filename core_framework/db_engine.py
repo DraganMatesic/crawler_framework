@@ -50,7 +50,7 @@ class DbEngine:
     primary_key = 'id'  # default primary key is id
     archive_date = "archive"  # default archive column name
 
-    def __init__(self):
+    def __init__(self, ):
         self.db_type = None
         self.lib = None
         # cache if changes have been made to connection variables
@@ -224,6 +224,8 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 break
 
+
+
     @staticmethod
     def order_data(data):
         """method converts dataframe row to text and sorts characters alphabetically"""
@@ -349,7 +351,7 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect()
+                self.connect(connect_args={"application_name": "db_engine/merge/OperationalError"})
                 continue
 
             except Exception as e:
@@ -403,7 +405,7 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect()
+                self.connect(connect_args={"application_name": "db_engine/insert/OperationalError"})
                 continue
 
             except Exception as e:
@@ -454,7 +456,7 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect()
+                self.connect(connect_args={"application_name": "db_engine/delete/OperationalError"})
                 continue
 
             except Exception as e:
@@ -512,7 +514,7 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect()
+                self.connect(connect_args={"application_name": "db_engine/proc/OperationalError"})
                 continue
 
             except AttributeError as e:
@@ -575,7 +577,7 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect()
+                self.connect(connect_args={"application_name": "db_engine/update/OperationalError"})
                 continue
 
             except AttributeError as e:
