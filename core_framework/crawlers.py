@@ -287,15 +287,15 @@ class CrawlerBase(ProxyClient, ABC):
         elif self.proxy_type == 1:
             self.proxy_type = 2
 
-    def new_request(self, proc_id=1, sha=None, new=False, verify=True):
+    def new_request(self, proc_id=1, sha=None, new=False, verify=True, protocols=None):
         proxy_names = {1: 'tor', 2: 'public'}
         proxy_name = proxy_names.get(self.proxy_type)
-        proxy_data = self.get_proxy(proxy_type=proxy_name)
+        proxy_data = self.get_proxy(proxy_type=proxy_name, protocols=protocols)
 
         if not proxy_data:
             self.proxy_switch()
             proxy_name = proxy_names.get(self.proxy_type)
-            proxy_data = self.get_proxy(proxy_type=proxy_name)
+            proxy_data = self.get_proxy(proxy_type=proxy_name, protocols=protocols)
 
         r = Request(proxy_type=self.proxy_type, verify=verify, proxy_data=proxy_data)
         if proc_id not in list(self.requests.keys()):
