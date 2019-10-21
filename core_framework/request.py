@@ -70,6 +70,7 @@ class Request:
         self.port = "9150"
         self.request_type = 1
         self.response = None
+        self.response_raw = None
         self.args = None
         self.verify = verify
         self.headers = None
@@ -78,7 +79,7 @@ class Request:
         self.set_proxy()
 
     def set_proxy(self):
-        if self.proxy_data is not None:
+        if self.proxy_data is not None and self.proxy_data != []:
             if self.proxy_type == 1:
                 self.ip = self.proxy_data.get('ipv4')
             if self.proxy_type == 2:
@@ -100,7 +101,8 @@ class Request:
                 if re.search('python', ua) is not None:
                     self.ses.headers.update(user_agent.load())
 
-    def go(self, url, download=False, args=None):
+    def go(self, url, download=False, download_raw=False, args=None):
+        "download_raw - we use when we need to get other informations such as headers, cookies etc"
         self.args = args
         self.url = url
         self.session()
@@ -111,11 +113,17 @@ class Request:
         else:
             response = getattr(self, method)()
 
+        if download_raw is True:
+            if type(response) is dict:
+                return response
+            return response
+
         if download is True:
             if type(response) is dict:
                 return response
             return response.content
         else:
+            self.response_raw = response
             self.response = Response(self.test_response(response))
         return self.response
 
@@ -209,12 +217,16 @@ class AsyncRequest(Request):
                 self.async_ses = aiohttp.ClientSession(headers=self.headers, connector=self.tor_connector())
             # Public proxy type
             if self.proxy_type == 2:
-                self.async_ses = aiohttp.ClientSession(headers=self.headers)
+                if self.verify is False:
+                    connector = aiohttp.TCPConnector(verify_ssl=False)
+                    self.async_ses = aiohttp.ClientSession(headers=self.headers, connector=connector)
+                else:
+                    self.async_ses = aiohttp.ClientSession(headers=self.headers)
 
     def clean(self):
         self.async_ses = None
 
-    async def go(self, url, download=False, args=None):
+    async def go(self, url, download=False, download_raw=False, args=None):
         try:
             self.args = args
             self.url = url

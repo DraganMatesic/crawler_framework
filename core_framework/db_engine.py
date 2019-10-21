@@ -361,7 +361,7 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 break
 
-    def insert(self, tablename, data, schema=None):
+    def insert(self, tablename, data, primary_key=None, schema=None):
         """
         Method is used for inserting records in specified table
         :param str tablename:
@@ -380,7 +380,10 @@ class DbEngine:
 
                 # loading gathered table information to sqlalchemy object
                 mapper(DbTable, table)
-                DbTable.__getattribute__(DbTable, self.primary_key)
+                if primary_key is None:
+                    DbTable.__getattribute__(DbTable, self.primary_key)
+                else:
+                    DbTable.__getattribute__(DbTable, primary_key)
 
                 data_df = pd.DataFrame.from_dict(data, orient='index')
                 data_df = data_df.where((pd.notnull(data_df)), None)
