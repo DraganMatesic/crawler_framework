@@ -57,8 +57,12 @@ class DbEngine:
         variables = [i for i in dir(self) if not i.__contains__('__') and type(self.__getattribute__(i)) is str]
         [setattr(self, variable, self.__getattribute__(variable)) for variable in variables]
 
-    def connect(self, conn_id=None, **kwargs):
+    def connect(self, conn_id=None, archive_date='archive', **kwargs):
         connections = db_con_list()
+
+        self.conn_id = conn_id
+        self.kwargs = kwargs
+        self.archive_date = archive_date
 
         if conn_id is None:
             # print("conn_id is None searching for db deploy string")
@@ -77,7 +81,6 @@ class DbEngine:
             self.lib = connection.get('lib')
             string = engine_connection_strings.get(self.db_type).get(self.lib)
             connection_string = string.format(**connection)
-            # print(connection_string)
             self.engine = create_engine(connection_string, **kwargs)
             try:
                 self.connection = self.engine.connect()
@@ -184,7 +187,6 @@ class DbEngine:
 
                         filter_and = self.and_connstruct(DbTable, filters)
                         results = session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).statement
-
                     else:
                         results = session.query(DbTable).statement
                     db_df = pd.read_sql(results, engine, index_col=self.primary_key)
@@ -215,7 +217,7 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect()
+                self.connect(self.conn_id, **self.kwargs)
                 continue
 
             except Exception as e:
@@ -224,8 +226,6 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 break
 
-
-
     @staticmethod
     def order_data(data):
         """method converts dataframe row to text and sorts characters alphabetically"""
@@ -233,7 +233,7 @@ class DbEngine:
         data = ''.join(sorted(''.join(data).lower()))
         return data
 
-    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False, delete=False):
+    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False, delete=False, freeze=False):
         """
         :param str tablename:
         :param dict data:
@@ -271,7 +271,22 @@ class DbEngine:
 
                 # selecting data from database based on filters
                 session = sessionmaker(bind=engine)()
-                results = session.query(DbTable).filter_by(**filters).statement
+                if filters is not None:
+                    if freeze is False:
+                        filters = {k.lower(): v for k, v in filters.items()}
+
+                    filter_and, or_groups = [], []
+                    if 'or' in filters.keys():
+                        or_data = filters.get('or').copy()
+                        filters.pop('or')
+                        for od in or_data:
+                            or_groups.append(and_(*self.and_connstruct(DbTable, od)))
+                            pass
+
+                    filter_and = self.and_connstruct(DbTable, filters)
+                    results = session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).statement
+                else:
+                    results = session.query(DbTable).statement
 
                 # convert data to pandas object
                 db_df = pd.read_sql(results, engine)
@@ -280,6 +295,7 @@ class DbEngine:
                 # convert dictionary data to pandas data frame object
                 web_df = pd.DataFrame.from_dict(data, orient='index')
                 web_df = web_df.where((pd.notnull(web_df)), None)
+
                 # change df column names to lower_letters
                 web_df.columns = map(str.lower, web_df.columns)
 
@@ -320,6 +336,7 @@ class DbEngine:
                         web_new = web_new[web_new['_merge'].isin(['left_only'])]
                         web_new = web_new[web_columns]
                         web_new = web_new.where((pd.notnull(web_new)), None)
+                        web_new.replace({pd.NaT: None}, inplace=True)
 
                         # if there is new data that doesn't exist in database insert it
                         if web_new.empty is False:
@@ -337,12 +354,13 @@ class DbEngine:
 
                 # if there is no prexisting data in database then insert without comparing
                 elif insert is True:
+                    web_df.replace({pd.NaT: None}, inplace=True)
                     insert_data = web_df.to_dict('records')
                     session.bulk_insert_mappings(DbTable, insert_data)
 
                 session.commit()
                 session.flush()
-                break
+                return 200
 
             except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
                 sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
@@ -351,7 +369,8 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect(connect_args={"application_name": "db_engine/merge/OperationalError"})
+                # self.connect(connect_args={"application_name": "db_engine/merge/OperationalError"})
+                self.connect(self.conn_id, **self.kwargs)
                 continue
 
             except Exception as e:
@@ -359,7 +378,7 @@ class DbEngine:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
-                break
+                return 400
 
     def insert(self, tablename, data, primary_key=None, schema=None):
         """
@@ -368,6 +387,7 @@ class DbEngine:
         :param dict data:
         :return:
         """
+        insert_data = None
         for tries in range(5):
             try:
                 class DbTable(object):
@@ -389,6 +409,7 @@ class DbEngine:
                 data_df = data_df.where((pd.notnull(data_df)), None)
                 # change df column names to lower_letters
                 data_df.columns = map(str.lower, data_df.columns)
+                data_df.replace({pd.NaT: None}, inplace=True)
 
                 # calculate sha value and append to df
                 if not 'sha' in data_df.columns:
@@ -399,7 +420,7 @@ class DbEngine:
                 session.bulk_insert_mappings(DbTable, insert_data)
                 session.commit()
                 session.flush()
-                break
+                return 200
 
             except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
                 sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
@@ -408,7 +429,8 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect(connect_args={"application_name": "db_engine/insert/OperationalError"})
+                # self.connect(connect_args={"application_name": "db_engine/insert/OperationalError"})
+                self.connect(self.conn_id, **self.kwargs)
                 continue
 
             except Exception as e:
@@ -428,7 +450,7 @@ class DbEngine:
                 class DbTable(object):
                     pass
 
-                filters = {k.lower(): v for k, v in filters.items()}
+                # filters = {k.lower(): v for k, v in filters.items()}
 
                 engine = self.engine
                 metadata = MetaData(engine)
@@ -450,7 +472,7 @@ class DbEngine:
                 n_rows_deleted = session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).delete(synchronize_session='fetch')
                 session.commit()
                 session.flush()
-                break
+                return 200
 
             except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
                 sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
@@ -459,7 +481,8 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect(connect_args={"application_name": "db_engine/delete/OperationalError"})
+                # self.connect(connect_args={"application_name": "db_engine/delete/OperationalError"})
+                self.connect(self.conn_id, **self.kwargs)
                 continue
 
             except Exception as e:
@@ -517,7 +540,8 @@ class DbEngine:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect(connect_args={"application_name": "db_engine/proc/OperationalError"})
+                # self.connect(connect_args={"application_name": "db_engine/proc/OperationalError"})
+                self.connect(self.conn_id, **self.kwargs)
                 continue
 
             except AttributeError as e:
@@ -533,30 +557,34 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 break
 
-    def update(self, tablename, filters, values, schema=None):
+    def update(self, tablename, filters, values, schema=None, freeze=False):
         """
         :param str tablename:
         :param dict filters:
         :param dict values2:
         :param str schema:
+        :param bool freeze:
 
         tablename: name of the table we are going to update
         filters: is a dictionary for where clause
         values: dictionary where key is column name and value is value that will be added/updated to
         schema: schema where table is located if it is not in default schema .
+        freeze: when we dont want to lower column and table names
         """
         for tries in range(5):
             try:
                 class DbTable(object):
                     pass
 
-                filters = {k.lower(): v for k, v in filters.items()}
+                if freeze is False:
+                    filters = {k.lower(): v for k, v in filters.items()}
                 # gathering table information from database based on table name
                 # aka reflecting database object
                 engine = self.engine
                 metadata = MetaData(bind=engine)
                 table = Table(tablename, metadata, autoload=True, quote=True, schema=schema)
-                self.lower(table)
+                if freeze is False:
+                    self.lower(table)
 
                 # loading gathered table information to sqlalchemy object
                 mapper(DbTable, table)
@@ -566,21 +594,24 @@ class DbEngine:
                 for k, v in filters.items():
                     col = f"table.c.{k} == '{v}'"
                     where.append(col)
+
                 where = f"and_({','.join(where)})".replace("'None'", 'None')
-                where = where.replace("== 'True'", '!= None')
+                where = where.replace("== 'True'", '!= None').replace("== '<=", "<= '").replace("== '>=", ">= '")
+                # print(where)
                 statement = table.update().values(values).where(eval(where))
                 engine.execute(statement)
-
-                break
+                return 200
 
             except (sqlalchemy.exc.OperationalError, sqlalchemy.exc.ResourceClosedError) as e:
+                print(str(e))
                 sys.stdout.write(f"+ reconecting: sqlalchemy connection Error")
                 print(traceback.extract_stack())
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 sleep(randrange(5, 20))
-                self.connect(connect_args={"application_name": "db_engine/update/OperationalError"})
+                # self.connect(connect_args={"application_name": "db_engine/update/OperationalError"})
+                self.connect(self.conn_id, **self.kwargs)
                 continue
 
             except AttributeError as e:
