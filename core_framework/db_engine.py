@@ -4,6 +4,7 @@ import pyodbc
 import pickle
 import logging
 import hashlib
+import numpy as np
 import pandas as pd
 from time import sleep
 from random import randrange
@@ -295,6 +296,7 @@ class DbEngine:
                 # convert dictionary data to pandas data frame object
                 web_df = pd.DataFrame.from_dict(data, orient='index')
                 web_df = web_df.where((pd.notnull(web_df)), None)
+                web_df.replace({np.nan: None}, inplace=True)
 
                 # change df column names to lower_letters
                 web_df.columns = map(str.lower, web_df.columns)
@@ -337,6 +339,7 @@ class DbEngine:
                         web_new = web_new[web_columns]
                         web_new = web_new.where((pd.notnull(web_new)), None)
                         web_new.replace({pd.NaT: None}, inplace=True)
+                        web_new.replace({np.nan: None}, inplace=True)
 
                         # if there is new data that doesn't exist in database insert it
                         if web_new.empty is False:
@@ -355,6 +358,7 @@ class DbEngine:
                 # if there is no prexisting data in database then insert without comparing
                 elif insert is True:
                     web_df.replace({pd.NaT: None}, inplace=True)
+                    web_df.replace({np.nan: None}, inplace=True)
                     insert_data = web_df.to_dict('records')
                     session.bulk_insert_mappings(DbTable, insert_data)
 
@@ -410,6 +414,7 @@ class DbEngine:
                 # change df column names to lower_letters
                 data_df.columns = map(str.lower, data_df.columns)
                 data_df.replace({pd.NaT: None}, inplace=True)
+                data_df.replace({np.nan: None}, inplace=True)
 
                 # calculate sha value and append to df
                 if not 'sha' in data_df.columns:
