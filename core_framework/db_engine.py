@@ -297,6 +297,7 @@ class DbEngine:
                 web_df = pd.DataFrame.from_dict(data, orient='index')
                 web_df = web_df.where((pd.notnull(web_df)), None)
                 web_df.replace({np.nan: None}, inplace=True)
+                web_df.replace({pd.NaT: None}, inplace=True)
 
                 # change df column names to lower_letters
                 web_df.columns = map(str.lower, web_df.columns)
@@ -311,7 +312,10 @@ class DbEngine:
                 if db_df.empty is False:
                     # converting all values that are NaT or NaN to None
                     db_df = db_df.where((pd.notnull(db_df)), None)
-                    # default coparation is done over sha column unless overridden
+                    db_df.replace({pd.NaT: None}, inplace=True)
+                    db_df.replace({np.nan: None}, inplace=True)
+
+                    # default comparation is done over sha column unless overridden
                     if on is False:
                         on = ['sha']
 
@@ -602,7 +606,14 @@ class DbEngine:
 
                 where = f"and_({','.join(where)})".replace("'None'", 'None')
                 where = where.replace("== 'True'", '!= None').replace("== '<=", "<= '").replace("== '>=", ">= '")
-                # print(where)
+                new_values = {}
+                for k, v in values.items():
+                    if type(v) == pd._libs.tslibs.nattype.NaTType:
+                        new_values.update({k: None})
+                    if v == np.nan:
+                        new_values.update({k: None})
+                if new_values:
+                    values.update(new_values)
                 statement = table.update().values(values).where(eval(where))
                 engine.execute(statement)
                 return 200
