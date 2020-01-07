@@ -566,7 +566,7 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 break
 
-    def update(self, tablename, filters, values, schema=None, freeze=False):
+    def update(self, tablename, filters, values, schema=None, freeze=False, primary_key=None):
         """
         :param str tablename:
         :param dict filters:
@@ -597,7 +597,10 @@ class DbEngine:
 
                 # loading gathered table information to sqlalchemy object
                 mapper(DbTable, table)
-                DbTable.__getattribute__(DbTable, self.primary_key)
+                if primary_key is None:
+                    DbTable.__getattribute__(DbTable, self.primary_key)
+                else:
+                    DbTable.__getattribute__(DbTable, primary_key)
 
                 where = []
                 for k, v in filters.items():
@@ -610,7 +613,7 @@ class DbEngine:
                 for k, v in values.items():
                     if type(v) == pd._libs.tslibs.nattype.NaTType:
                         new_values.update({k: None})
-                    if v == np.nan:
+                    if v == np.nan or str(v) == 'nan' or str(v) == 'NaN':
                         new_values.update({k: None})
                 if new_values:
                     values.update(new_values)
