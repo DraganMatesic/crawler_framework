@@ -50,17 +50,40 @@ def db_con_list():
         raise FileNotFoundError(f"File does not exist on path: {database_config}")
 
 
+# class NoDaemonProcess(mp.Process):
+#     def _get_daemon(self):
+#         return False
+#
+#     def _set_daemon(self, value):
+#         pass
+#     daemon = property(_get_daemon, _set_daemon)
+#
+#
+# class MyPool(multiprocessing.pool.Pool):
+#     Process = NoDaemonProcess
+
+
+# for versions python 3.8+
 class NoDaemonProcess(mp.Process):
-    def _get_daemon(self):
+    @property
+    def daemon(self):
         return False
 
-    def _set_daemon(self, value):
+    @daemon.setter
+    def daemon(self, value):
         pass
-    daemon = property(_get_daemon, _set_daemon)
+
+
+class NoDaemonContext(type(multiprocessing.get_context())):
+    Process = NoDaemonProcess
 
 
 class MyPool(multiprocessing.pool.Pool):
-    Process = NoDaemonProcess
+    def __init__(self, *args, **kwargs):
+        kwargs['context'] = NoDaemonContext()
+        super(MyPool, self).__init__(*args, **kwargs)
+
+
 
 
 class Provider:
