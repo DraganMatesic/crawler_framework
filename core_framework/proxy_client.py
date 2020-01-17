@@ -37,7 +37,7 @@ class ProxyClient(DbEngine, ABC):
                 return_data = sock.recv(1024)
                 return_data = pickle.loads(return_data)
             except Exception as global_err:
-                print(f"Exception during sending request to distribution server on location {production_host}. Retrying in 10 sec")
+                # print(f"Exception during sending request to distribution server on location {production_host}. Retrying in 10 sec")
                 self.host, self.port = load_proxy_server_data()
                 sleep(10)
                 continue
