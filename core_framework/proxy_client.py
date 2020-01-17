@@ -1,6 +1,7 @@
 import socket
 import pickle
 from abc import ABC
+from time import sleep
 from datetime import datetime, timedelta
 try:
     from core_framework.db_engine import DbEngine
@@ -25,15 +26,24 @@ class ProxyClient(DbEngine, ABC):
         self.connect(connect_args={"application_name": "proxy_client.py/ProxyClient"})
 
     def send_request(self, data):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        try:
-            sock.connect((self.host, self.port))
-            sock.sendall(data)
-            # Receive data from the server, unpickle it and close connection
-            return_data = sock.recv(1024)
-            return_data = pickle.loads(return_data)
-        finally:
-            sock.close()
+        return_data = None
+        while 1:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            production_host = (self.host, self.port)
+            try:
+                sock.connect(production_host)
+                sock.sendall(data)
+                # Receive data from the server, unpickle it and close connection
+                return_data = sock.recv(1024)
+                return_data = pickle.loads(return_data)
+            except Exception as global_err:
+                print(f"Exception during sending request to distribution server on location {production_host}. Retrying in 10 sec")
+                self.host, self.port = load_proxy_server_data()
+                sleep(10)
+                continue
+            finally:
+                sock.close()
+            break
         return return_data
 
     def get_proxy(self, proxy_type='public', website=None, protocols=None):
