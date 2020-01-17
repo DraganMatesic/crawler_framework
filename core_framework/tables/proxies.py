@@ -29,17 +29,17 @@ class ProxyListAll:
 
 
 class ProxyListOra(BaseOra, ProxyListAll):
-    id = Column('id', Integer, Sequence('proxy_id_seq'), primary_key=True)
+    id = Column('id', BigInteger, Sequence('proxy_id_seq'), primary_key=True)
 
 
 class ProxyListMS(BaseMs, ProxyListAll):
-    id = Column('id', Integer, primary_key=True)
+    id = Column('id', BigInteger, primary_key=True)
 
 
 class ProxyListPstg(BasePstg, ProxyListAll):
     proxy_id_seq = Sequence('proxy_id_seq', metadata=BasePstg.metadata)
     id = Column(
-        Integer, proxy_id_seq,
+        BigInteger, proxy_id_seq,
         server_default=proxy_id_seq.next_value(), primary_key=True)
 
 
@@ -56,17 +56,17 @@ class AnonymityCodes:
 
 
 class AnonymityCodesOra(BaseOra, AnonymityCodes):
-    id = Column('id', Integer, Sequence('anonimity_id_seq'), primary_key=True)
+    id = Column('id', BigInteger, Sequence('anonimity_id_seq'), primary_key=True)
 
 
 class AnonymityCodesMS(BaseMs, AnonymityCodes):
-    id = Column('id', Integer, primary_key=True)
+    id = Column('id', BigInteger, primary_key=True)
 
 
 class AnonymityCodesPstg(BasePstg, AnonymityCodes):
     anonimity_id_seq = Sequence('anonimity_id_seq', metadata=BasePstg.metadata)
     id = Column(
-        Integer, anonimity_id_seq,
+        BigInteger, anonimity_id_seq,
         server_default=anonimity_id_seq.next_value(), primary_key=True)
 
 #======================================================================
@@ -89,17 +89,17 @@ class ProxyLogAll:
 
 
 class ProxyLogOra(BaseOra, ProxyLogAll):
-    id = Column('id', Integer, Sequence('proxy_log_id_seq'), primary_key=True)
+    id = Column('id', BigInteger, Sequence('proxy_log_id_seq'), primary_key=True)
 
 
 class ProxyLogMS(BaseMs, ProxyLogAll):
-    id = Column('id', Integer, primary_key=True)
+    id = Column('id', BigInteger, primary_key=True)
 
 
 class ProxyLogPstg(BasePstg, ProxyLogAll):
     proxy_id_seq = Sequence('proxy_log_id_seq', metadata=BasePstg.metadata)
     id = Column(
-        Integer, proxy_id_seq,
+        BigInteger, proxy_id_seq,
         server_default=proxy_id_seq.next_value(), primary_key=True)
 
 
@@ -119,17 +119,17 @@ class ProxyErrorLogAll:
 
 
 class ProxyErrorLogOra(BaseOra, ProxyErrorLogAll):
-    id = Column('id', Integer, Sequence('proxy_err_id_seq'), primary_key=True)
+    id = Column('id', BigInteger, Sequence('proxy_err_id_seq'), primary_key=True)
 
 
 class ProxyErrorLogMS(BaseMs, ProxyErrorLogAll):
-    id = Column('id', Integer, primary_key=True)
+    id = Column('id', BigInteger, primary_key=True)
 
 
 class ProxyErrorLogPstg(BasePstg, ProxyErrorLogAll):
     proxy_id_seq = Sequence('proxy_err_id_seq', metadata=BasePstg.metadata)
     id = Column(
-        Integer, proxy_id_seq,
+        BigInteger, proxy_id_seq,
         server_default=proxy_id_seq.next_value(), primary_key=True)
 
 
@@ -149,11 +149,11 @@ class ProxyDistAll:
 
 
 class ProxyDistOra(BaseOra, ProxyDistAll):
-    id = Column('id', Integer, Sequence('proxy_dist_id_seq'), primary_key=True)
+    id = Column('id', BigInteger, Sequence('proxy_dist_id_seq'), primary_key=True)
 
 
 class ProxyDistMS(BaseMs, ProxyDistAll):
-    id = Column('id', Integer, primary_key=True)
+    id = Column('id', BigInteger, primary_key=True)
 
 
 class ProxyDistPstg(BasePstg, ProxyDistAll):
@@ -180,15 +180,15 @@ class ProxyBanAll:
 
 
 class ProxyBanOra(BaseOra, ProxyBanAll):
-    id = Column('id', Integer, Sequence('proxy_ban_id_seq'), primary_key=True)
+    id = Column('id', BigInteger, Sequence('proxy_ban_id_seq'), primary_key=True)
 
 
 class ProxyBanMS(BaseMs, ProxyBanAll):
-    id = Column('id', Integer, primary_key=True)
+    id = Column('id', BigInteger, primary_key=True)
 
 
 class ProxyBanPstg(BasePstg, ProxyBanAll):
     proxy_ban_id_seq = Sequence('proxy_ban_id_seq', metadata=BasePstg.metadata)
     id = Column(
-        Integer, proxy_ban_id_seq,
+        BigInteger, proxy_ban_id_seq,
         server_default=proxy_ban_id_seq.next_value(), primary_key=True)

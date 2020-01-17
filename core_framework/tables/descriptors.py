@@ -73,11 +73,11 @@ class TableRowDescriptionsAll:
 
 
 class TableRowDescriptionOra(BaseOra, TableRowDescriptionsAll):
-    id = Column('id', Integer, Sequence('tablecol_id_seq'), primary_key=True)
+    id = Column('id', BigInteger, Sequence('tablecol_id_seq'), primary_key=True)
 
 
 class TableRowDescriptionMS(BaseMs, TableRowDescriptionsAll):
-    id = Column('id', Integer, primary_key=True)
+    id = Column('id', BigInteger, primary_key=True)
 
 
 class TableRowDescriptionPstg(BasePstg, TableRowDescriptionsAll):

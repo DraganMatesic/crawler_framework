@@ -57,6 +57,7 @@ class Deploy(DbEngine):
 
             elif self.db_type in ['pstg']:
                 # creates auto triggers and tables
+                BasePstg.metadata.drop_all(self.engine)
                 BasePstg.metadata.create_all(self.engine)
 
             # add or remove data from tables

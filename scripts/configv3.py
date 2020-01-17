@@ -7,6 +7,7 @@ import hashlib
 import cx_Oracle
 import sqlalchemy
 from sys import argv
+from time import sleep
 from datetime import datetime
 from subprocess import Popen, PIPE
 from sqlalchemy import create_engine
@@ -14,6 +15,7 @@ from distutils.sysconfig import get_python_lib
 from core_framework.deploy import Deploy
 from core_framework.proxy_server import ProxyServer
 from core_framework.tor_network import install as tor_install
+from core_framework.proxy_dist import ProxyDist
 
 
 width = 50
@@ -125,7 +127,7 @@ class Configuration:
 
     def commands(self):
         while 1:
-            master_options ={1: 'Database configuration', 2: 'Deploy framework', 3: 'Run proxy server', 4: 'Tor setup'}
+            master_options ={1: 'Database configuration', 2: 'Deploy framework', 3: 'Run proxy server', 4: 'Tor setup', 5: 'Proxy distributor'}
 
             master_list = create_option_list(master_options, 'SELECT OPTION:')
             write_line(txt=master_list)
@@ -141,10 +143,11 @@ class Configuration:
 
             if option == 3:
                 'Run proxy server'
-                proxy_options = {0: 'normal run', 1: 'run without tor', 2: 'run without public proxies'}
+                proxy_options = {0: 'normal run', 1: 'run without tor', 2: 'run without public proxies', 3: 'only gatherer', 4: 'only tor'}
                 proxy_op_list = create_option_list(proxy_options, 'SELECT OPTION:')
                 write_line(txt=proxy_op_list)
                 suboption = input_handler()
+
                 try:
                     api = ProxyServer()
                     program_location = api.location
@@ -168,7 +171,45 @@ class Configuration:
                 "Tor setup"
                 TorSetup()
 
-            if option not in [3]:
+            if option == 5:
+                'Standalone version of proxy distributor'
+                check_path = os.path.exists(database_config)
+                if check_path is False:
+                    sys.stdout.write('create first connection id to the wanted server using config.py')
+                    return
+
+                check_path = os.path.exists(proxy_dist)
+                if check_path is False:
+                    sys.stdout.write('First run - specify connection id where to look for proxy list:')
+                    option = input_handler()
+                    data = {'conn_id': option}
+                    with open(proxy_dist, 'wb') as fw:
+                        pickle.dump(data, fw)
+                    sleep(1)
+
+                with open(proxy_dist, 'rb') as fr:
+                    data = pickle.load(fr)
+                    conn_id = data.get('conn_id')
+                    try:
+                        api = ProxyDist()
+                        program_location = api.location
+                        # getting default interpreter
+                        if self.venv is False:
+                            py_ver_info = sys.version_info
+                            py_version = f"-{py_ver_info[0]}.{py_ver_info[1]}"
+                            Popen(['py', py_version, program_location, str(conn_id)])
+                        else:
+                            p = Popen('py -c "import sys; import os; sys.stdout.write(sys.executable)" ', stdout=PIPE)
+                            lines = p.stdout.readlines()
+                            real_executable = lines[0]
+                            if type(real_executable) == bytes:
+                                real_executable = real_executable.decode()
+                            Popen([real_executable, program_location, str(conn_id)])
+                        del api
+                    except Exception as e:
+                        print(str(e))
+
+            if option not in [3, 5]:
                 write_line(txt='Back to main menu? [y/n]')
                 exit_a = self.bool_handler()
                 if exit_a is False:

@@ -84,8 +84,6 @@ class MyPool(multiprocessing.pool.Pool):
         super(MyPool, self).__init__(*args, **kwargs)
 
 
-
-
 class Provider:
     def __init__(self, url, parser, crawler, cookies=None):
         self.url, self.parser, self.crawler = url, parser, crawler
@@ -350,7 +348,6 @@ class ProxyServer(DbEngine, ABC):
         set_free_port()
         host, port = load_proxy_server_data()
         print(f"proxy distributor runs at {host}:{port}")
-
         engine = DbEngine()
         engine.connect(connect_args={"application_name": "proxy_server/ProxyDistributor"})
 
@@ -387,7 +384,9 @@ class ProxyServer(DbEngine, ABC):
 
             task_sets = {0: [self.gather, self.ip_checker, self.tor_service, self.proxy_distributor, self.proxy_guard],
                          1: [self.gather, self.ip_checker, self.proxy_distributor, self.proxy_guard],
-                         2: [self.tor_service, self.proxy_distributor, self.proxy_guard]}
+                         2: [self.tor_service, self.proxy_distributor, self.proxy_guard],
+                         3: [self.gather],
+                         4: [self.tor_service]}
 
             task_set = task_sets.get(suboption)
             pool = MyPool(5)

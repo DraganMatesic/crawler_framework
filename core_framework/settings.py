@@ -13,6 +13,7 @@ database_log_folder = r'{}\logs'.format(framework_folder)
 tor_config = r'{}\tor_config.pkl'.format(framework_folder)
 python_path = r'{}\py_config.pkl'.format(framework_folder)
 proxy_path = r'{}\proxy_config.pkl'.format(framework_folder)
+proxy_dist = r'{}\proxy_dist_config.pkl'.format(framework_folder)
 
 # ---------------------------------------------------------------------------
 # PROXY CARWLER SETTINGS

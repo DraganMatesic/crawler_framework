@@ -20,15 +20,15 @@ class TorListAll:
 
 
 class TorListOra(BaseOra, TorListAll):
-    id = Column('id', Integer, Sequence('tor_id_seq'), primary_key=True)
+    id = Column('id', BigInteger, Sequence('tor_id_seq'), primary_key=True)
 
 
 class TorListMS(BaseMs, TorListAll):
-    id = Column('id', Integer, primary_key=True)
+    id = Column('id', BigInteger, primary_key=True)
 
 
 class TorListPstg(BasePstg, TorListAll):
     proxy_id_seq = Sequence('tor_id_seq', metadata=BasePstg.metadata)
     id = Column(
-        Integer, proxy_id_seq,
+        BigInteger, proxy_id_seq,
         server_default=proxy_id_seq.next_value(), primary_key=True)
