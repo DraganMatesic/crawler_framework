@@ -83,7 +83,10 @@ class DbEngine:
             string = engine_connection_strings.get(self.db_type).get(self.lib)
             connection_string = string.format(**connection)
             if self.db_type == 'ora':
-                self.engine = create_engine(connection_string, max_identifier_length = 128, **kwargs)
+                try:
+                    self.engine = create_engine(connection_string, max_identifier_length=128, **kwargs)
+                except:
+                    self.engine = create_engine(connection_string, label_length=30, **kwargs)
             else:
                 self.engine = create_engine(connection_string, **kwargs)
             try:
