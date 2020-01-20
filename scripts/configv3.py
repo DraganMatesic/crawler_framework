@@ -181,8 +181,8 @@ class Configuration:
                 check_path = os.path.exists(proxy_dist)
                 if check_path is False:
                     sys.stdout.write('First run - specify connection id where to look for proxy list:')
-                    option = input_handler()
-                    data = {'conn_id': option}
+                    inoption = input_handler()
+                    data = {'conn_id': inoption}
                     with open(proxy_dist, 'wb') as fw:
                         pickle.dump(data, fw)
                     sleep(1)

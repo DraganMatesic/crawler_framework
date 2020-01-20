@@ -1,4 +1,5 @@
 # standalone version of proxy distributor so that others users can fetch proxies that are already gathered
+import os
 import sys
 import socket
 import pickle
@@ -7,6 +8,7 @@ from core_framework.crawlers import *
 from core_framework.db_engine import DbEngine
 from core_framework.tor_network import get_ipv4
 from core_framework.proxy_server import ProxyDistributor
+
 
 def get_free_port():
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -38,7 +40,19 @@ class ProxyDist:
         print("> proxy distributor started")
         set_free_port()
         host, port = load_proxy_server_data()
-        conn_id = int(argv[0])
+        if argv[0] == 'config':
+            dist_config_name = "proxy_dist_config.pkl"
+            crawlers_sm_config_dir = r'C:\Users\{}\Documents\crawler_framework'.format(getpass.getuser())
+            storage_path = os.path.join(crawlers_sm_config_dir, dist_config_name)
+            if os.path.exists(storage_path) is True:
+                with open(storage_path, 'rb') as fr:
+                    data = pickle.load(fr)
+                    conn_id = data.get('conn_id')
+            else:
+                raise FileNotFoundError("Use config.py to first run to set db connection id where proxies are")
+        else:
+            conn_id = int(argv[0])
+
         print(f"proxy distributor runs at {host}:{port}, db conn_id: {conn_id}")
 
         engine = DbEngine()
