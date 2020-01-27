@@ -51,12 +51,14 @@ class DbEngine:
     primary_key = 'id'  # default primary key is id
     archive_date = "archive"  # default archive column name
 
-    def __init__(self, ):
+    def __init__(self, primary_key=None):
         self.db_type = None
         self.lib = None
         # cache if changes have been made to connection variables
         variables = [i for i in dir(self) if not i.__contains__('__') and type(self.__getattribute__(i)) is str]
         [setattr(self, variable, self.__getattribute__(variable)) for variable in variables]
+        if primary_key is not None:
+            self.primary_key = primary_key
 
     def connect(self, conn_id=None, archive_date='archive', **kwargs):
         connections = db_con_list()
