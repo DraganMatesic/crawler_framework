@@ -71,7 +71,8 @@ class DbEngine:
             # print("conn_id is None searching for db deploy string")
             conn_data = connections.get('connections')
             for k, v in conn_data.items():
-                if v.get('deploy') is True:
+                if v.get('deploy') is not None:
+                # if v.get('deploy') is True:
                     conn_id = k
                     break
 
@@ -118,6 +119,8 @@ class DbEngine:
                 and_clause = (and_(getattr(table, attr).isnot(None)))
             elif type(value) is list:
                 and_clause = (and_(getattr(table, attr).in_(value)))
+            elif type(value) is tuple:
+                and_clause = (and_(getattr(table, attr).any(value)))
             elif type(value) is str:
                 if value.startswith(">="):
                     value = value.strip(">=")
@@ -138,7 +141,7 @@ class DbEngine:
         error = {"filename": filename, "method": method, "err_type": str(exc_type), 'err_line': str(lineno), 'err_desc': str(e)}
         logger.error(error)
 
-    def select(self, tablename, columns=None, filters=None, sql=None, schema=None, index=False, view=True, freeze=False):
+    def select(self, tablename, columns=None, filters=None, sql=None, schema=None, index=False, view=True, freeze=False, array=False):
         """
         :param str tablename:
         :param list columns:
@@ -147,6 +150,7 @@ class DbEngine:
         :param str schema:
         :param bool index:
         :param bool view:
+        :param bool array:
         Description:
             usage: selects data from specified table in database
             filters: is where clause that will look all as and value of column when set to True = is not Null when set to None = is Null
@@ -158,6 +162,7 @@ class DbEngine:
                 declare it as prmary key - this is only applicable for mssql since
                 you cant add primary key in mssql views
             freeze: don't change columns to lower util data is grabed from database
+            array: used when we are making sql query that containst array column in postgresql
         """
         for tries in range(5):
             try:
@@ -211,7 +216,8 @@ class DbEngine:
                     columns = [k.lower()for k in columns]
                     db_df = db_df[columns]
 
-                db_df.drop_duplicates(inplace=True)
+                if array is False:
+                    db_df.drop_duplicates(inplace=True)
                 if index is False:
                     final_select = db_df.to_dict('records')
                 else:
@@ -569,6 +575,7 @@ class DbEngine:
                     raise NotImplemented("pyodbc does not support callproc create connection string using pymssql")
 
             except Exception as e:
+                # print(str(e))
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)

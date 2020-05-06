@@ -44,6 +44,7 @@ class ClassicProxy:
         return e
 
     def error_handler(self, errorid, error):
+        # print(error, errorid)
         if errorid not in self.error_log.keys():
             error.update({'err_cnt': 0})
             self.error_log.update({errorid: error})

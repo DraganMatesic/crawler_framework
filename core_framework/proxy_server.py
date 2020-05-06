@@ -185,7 +185,7 @@ class Providers:
             Provider('https://t.me/s/proxiesfine', ParserType1, ClassicProxy),
             Provider('http://www.httptunnel.ge/ProxyListForFree.aspx', ParserType1, ClassicProxy),
             Provider('http://cn-proxy.com/', ParserType1, ClassicProxy),
-            Provider('https://hugeproxies.com/home/', ParserType1, ClassicProxy),
+            # Provider('https://hugeproxies.com/home/', ParserType1, ClassicProxy),  # doesnt exist anymore
             Provider('http://pubproxy.com/api/proxy?limit=200&format=txt', ParserType1, ClassicProxy),
             # Provider('http://ipaddress.com/proxy-list/', ParserType1, ClassicProxy), #  drukčiji parser ili prilagodba klasičnog
                 ]
@@ -276,7 +276,16 @@ class ProxyServer(DbEngine, ABC):
                             proc_id = log.get('proc_id')
                             error_data.update({'proc_id': proc_id})
                             proxy_error_log.update({len(proxy_error_log): error_data})
-                        proxy_log.update({len(proxy_log): log})
+
+                        new_log = dict()
+                        for k, v in log.items():
+                            if str(v).lower() in ('nat','nan'):
+                                if k == 'errors':
+                                    v = 0
+                                else:
+                                    v = None
+                            new_log.update({k: v})
+                        proxy_log.update({len(proxy_log): new_log})
 
                     # insert results of crawling in logs
                     self.insert('proxy_log', proxy_log)
@@ -381,7 +390,6 @@ class ProxyServer(DbEngine, ABC):
             suboption = 0
             if argv:
                 suboption = int(argv[0])
-
             task_sets = {0: [self.gather, self.ip_checker, self.tor_service, self.proxy_distributor, self.proxy_guard],
                          1: [self.gather, self.ip_checker, self.proxy_distributor, self.proxy_guard],
                          2: [self.tor_service, self.proxy_distributor, self.proxy_guard],

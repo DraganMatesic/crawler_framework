@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name='crawler_framework',
-      version='0.2.6',
+      version='0.2.7',
       description='Framework for crawling',
       long_description=long_description,
       long_description_content_type="text/markdown",

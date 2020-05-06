@@ -123,6 +123,11 @@ class Request:
                 return response
             return response.content
         else:
+            # try:
+            #     print(1, response.cookies)
+            #     print(2, response.headers)
+            # except:
+            #     pass
             self.response_raw = response
             self.response = Response(self.test_response(response))
         return self.response
@@ -144,6 +149,12 @@ class Request:
             if 399 < int(response.status_code) < 500:
                 return {"RequestError": "Blocked"}
             if int(response.status_code) > 499:
+                if re.search(b'Squid', response.content, re.MULTILINE |re.IGNORECASE | re.DOTALL) is not None:
+                    return {"RequestError": "Proxy server Squid error"}
+                if re.search(b'Privoxy', response.content, re.MULTILINE |re.IGNORECASE | re.DOTALL) is not None:
+                    return {"RequestError": "Proxy server Privoxy error"}
+                if re.search(b'Bad Gateway', response.content, re.MULTILINE |re.IGNORECASE | re.DOTALL) is not None:
+                    return {"RequestError": "Proxy server bad gateway error"}
                 return {"RequestError": "Page server is down"}
         # aiohttp status checker
         if type(response) is client_reqrep.ClientResponse:
