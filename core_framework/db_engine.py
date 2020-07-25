@@ -350,6 +350,7 @@ class DbEngine:
                     # +------------  INSERT ------------+ "
                     # if insert is True compare data
                     if insert is True:
+
                         web_new = web_df.merge(db_df.drop_duplicates(), on=on, how='left', indicator=True, suffixes=('','_y'))
 
                         # removing pandas calculation columns
@@ -573,13 +574,14 @@ class DbEngine:
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 if str(e) == "'pyodbc.Cursor' object has no attribute 'callproc'":
                     raise NotImplemented("pyodbc does not support callproc create connection string using pymssql")
+                return 400
 
             except Exception as e:
-                # print(str(e))
+                print(str(e))
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
-                break
+                return 400
 
     def update(self, tablename, filters, values, schema=None, freeze=False, primary_key=None):
         """
