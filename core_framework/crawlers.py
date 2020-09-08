@@ -11,7 +11,6 @@ from time import time, sleep
 from random import shuffle
 from urllib.parse import *
 from lxml import html as lh
-import xml.etree.ElementTree as et
 from abc import ABC
 
 from datetime import datetime
