@@ -397,9 +397,9 @@ class DbEngine:
                 continue
 
             except Exception as e:
-                print("error in merge", str(e))
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
+                print("error in merge", str(e), exc_tb.tb_lineno)
                 self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
                 return 400
 

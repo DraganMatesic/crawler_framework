@@ -5,6 +5,7 @@ import requests
 from abc import ABC
 import pandas as pd
 import socketserver
+import concurrent.futures
 import multiprocessing.pool
 import multiprocessing as mp
 from subprocess import Popen, PIPE
@@ -85,8 +86,9 @@ class MyPool(multiprocessing.pool.Pool):
 
 
 class Provider:
-    def __init__(self, url, parser, crawler, cookies=None):
+    def __init__(self, url, parser, crawler, cookies=None, depth=5):
         self.url, self.parser, self.crawler = url, parser, crawler
+        self.depth = depth
 
 
 class ProxyDistributor(socketserver.BaseRequestHandler):
@@ -177,18 +179,30 @@ class Providers:
     def classic(self):
         return [
             Provider('http://www.proxylists.net/', ParserType1, ClassicProxy),
-            Provider('https://www.sslproxies.org/', ParserType1, ClassicProxy),
-            Provider('https://freshfreeproxylist.wordpress.com/', ParserType1, ClassicProxy),
-            Provider('http://proxytime.ru/http', ParserType1, ClassicProxy),
-            Provider('https://free-proxy-list.net/', ParserType1, ClassicProxy),
-            Provider('https://us-proxy.org/', ParserType1, ClassicProxy),
-            Provider('https://t.me/s/proxiesfine', ParserType1, ClassicProxy),
-            Provider('http://www.httptunnel.ge/ProxyListForFree.aspx', ParserType1, ClassicProxy),
-            Provider('http://cn-proxy.com/', ParserType1, ClassicProxy),
+            # Provider('https://freshfreeproxylist.wordpress.com/', ParserType1, ClassicProxy), #  2020-09-07 not updated over 2 years
+            # Provider('http://proxytime.ru/http', ParserType1, ClassicProxy), # switched to commercial 2020-09-07
+
+            # Provider('https://free-proxy-list.net/', ParserType1, ClassicProxy, depth=0), # to long to get data
+            # Provider('https://www.sslproxies.org/', ParserType1, ClassicProxy, depth=0), # to long to get data
+            # Provider('https://us-proxy.org/', ParserType1, ClassicProxy, depth=0), # to long to get data
+
+            Provider('https://t.me/s/proxiesfine', ParserType1, ClassicProxy, depth=0),
+            Provider('http://www.httptunnel.ge/ProxyListForFree.aspx', ParserType1, ClassicProxy, depth=1),
+            # Provider('http://cn-proxy.com/', ParserType1, ClassicProxy, depth=1),  # unstable china webpage
             # Provider('https://hugeproxies.com/home/', ParserType1, ClassicProxy),  # doesnt exist anymore
             Provider('http://pubproxy.com/api/proxy?limit=200&format=txt', ParserType1, ClassicProxy),
-            # Provider('http://ipaddress.com/proxy-list/', ParserType1, ClassicProxy), #  drukčiji parser ili prilagodba klasičnog
-                ]
+
+            # added 2020-09-07
+            Provider('https://www.ipaddress.com/proxy-list/', ParserType1, ClassicProxy, depth=0),
+            Provider('http://www.proxyserverlist24.top/', ParserType1, ClassicProxy, depth=1),
+            Provider('http://aliveproxy.com/', ParserType1, ClassicProxy, depth=1),
+            Provider('https://proxyhttp.net', ParserType1, ClassicProxy),
+
+            # added 2020-09-08
+            Provider('http://www.sslproxies24.top/', ParserType1, ClassicProxy, depth=1),
+            Provider('https://www.xroxy.com/proxylist.htm', ParserType2, Xroxy),
+            # Provider('https://openproxy.space', ParserType1, ClassicProxy, depth=2),  # to long to get data
+            ]
 
 
 class ProxyServer(DbEngine, ABC):
@@ -205,7 +219,7 @@ class ProxyServer(DbEngine, ABC):
             log = {'start_time': start, 'webpage': data.url, 'proc_id': process_id}
 
             crawler = data.crawler
-            crawler = crawler(data, 5, log=log)
+            crawler = crawler(data, data.__getattribute__('depth'), log=log)
 
             ips = crawler.start()
 
@@ -234,6 +248,7 @@ class ProxyServer(DbEngine, ABC):
                 tick += 1
                 protocols = ['http', 'https', "http;https"]
                 gather_status = False
+                gather_status = True
                 # to not overload server with constant select we will check every 5min
                 if (datetime.now() - sql_lastcheck).total_seconds() > 300:
                     for protocol in protocols:
@@ -291,6 +306,7 @@ class ProxyServer(DbEngine, ABC):
                     self.insert('proxy_log', proxy_log)
                     if proxy_error_log :
                         self.insert('proxy_error_log', proxy_error_log)
+
             except Exception as e:
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
@@ -302,17 +318,29 @@ class ProxyServer(DbEngine, ABC):
     def ip_checker(self):
         print("> ip checker started")
         self.connect(connect_args={"application_name": "proxy_server/ip_checker"})
+
         while True:
             try:
                 # check new proxies and then check old proxies that were last checked 1h ago
                 now = datetime.today() - timedelta(hours=1)
-                lists = {'new_proxies': {'anonymity': 0}, 'old_proxies': {'last_checked': f"<={now}", 'anonymity': 2}}
+                sql_new = "select ip, port, sha from proxy_list where anonymity = 0 and proxy_source !=  'https://proxyscrape.com/premium'"
+                sql_old = f'''select ip, port, sha from proxy_list where anonymity = 2
+                          and (last_checked <= '{now.strftime("%Y-%m-%d %H:%M:%S")}' or last_checked is null) 
+                          and proxy_source !=  'https://proxyscrape.com/premium' '''
+
+                # lists = {'new_proxies': {'anonymity': 0}, 'old_proxies': {'last_checked': f"<={now}", 'anonymity': 2}}
+                lists = {'new_proxies': sql_new, 'old_proxies': sql_old}
 
                 for list_type, filters in lists.items():
-                    proxies = self.select('proxy_list', filters=filters, columns=['ip', 'port', 'sha'])
+                    # proxies = self.select('proxy_list', filters=filters, columns=['ip', 'port', 'sha'])
+                    proxies = self.select('proxy_list', sql=filters)
+                    list_size = len(proxies)
                     proxies = proxies[:100]
+
+                    start_time = datetime.now()
                     crawler = CrawlerChecker(proxies, self.my_ip)
                     checked = crawler.start()
+
                     for row in checked:
                         # sys.stdout.write(f"\r{row}")
                         sha = row.get('sha')
@@ -328,6 +356,7 @@ class ProxyServer(DbEngine, ABC):
                         if bad_proxy is False:
                             values.update({'anonymity': 2})
                         self.update('proxy_list', {'sha': sha}, values)
+
             except Exception as e:
                 print("ip_checker", str(e))
             sleep(1)
@@ -394,7 +423,8 @@ class ProxyServer(DbEngine, ABC):
                          1: [self.gather, self.ip_checker, self.proxy_distributor, self.proxy_guard],
                          2: [self.tor_service, self.proxy_distributor, self.proxy_guard],
                          3: [self.gather],
-                         4: [self.tor_service]}
+                         4: [self.tor_service],
+                         5: [self.ip_checker]}
 
             task_set = task_sets.get(suboption)
             pool = MyPool(5)
@@ -414,5 +444,3 @@ if __name__ == '__main__':
     if os.path.exists(database_config):
         api = ProxyServer()
         api.run(sys.argv[1:])
-
-

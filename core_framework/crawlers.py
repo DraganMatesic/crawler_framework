@@ -3,13 +3,18 @@ import asyncio
 import aiohttp
 import logging
 import hashlib
+import requests
 from sys import stdout
+import concurrent.futures
+
 from time import time, sleep
 from random import shuffle
 from urllib.parse import *
 from lxml import html as lh
+import xml.etree.ElementTree as et
 from abc import ABC
 
+from datetime import datetime
 from core_framework.parsers import *
 from core_framework import user_agent
 from core_framework.settings import *
@@ -17,9 +22,8 @@ from core_framework.request import Request, AsyncRequest
 from core_framework.proxy_client import ProxyClient
 
 
-class ClassicProxy:
-    name = 'ClassicProxy'
-
+class BaseProxy:
+    name = 'BaseProxy'
     def __init__(self, provider_data, depth, max_conn=200, log=None):
         self.log = log
         self.crawled_urls = 1
@@ -30,9 +34,18 @@ class ClassicProxy:
         self.parser_class = provider_data.parser
         self.start_url = provider_data.url
         self.base_url = '{}://{}'.format(urlparse(self.start_url).scheme, urlparse(self.start_url).netloc)
+        self.netloc = urlparse(self.start_url).netloc
         self.url_depth = depth
         self.parsed_urls = set()
         self.headers = user_agent.load()
+        self.proxy_list = set()
+
+
+class ClassicProxy(BaseProxy):
+    name = 'ClassicProxy'
+
+    def __init__(self, provider_data, depth, max_conn=200, log=None):
+        BaseProxy.__init__(self, provider_data, depth, max_conn=max_conn, log=log)
         self.conn_limiter = asyncio.BoundedSemaphore(max_conn)
         self.session = aiohttp.ClientSession(headers=self.headers)
 
@@ -56,6 +69,7 @@ class ClassicProxy:
         self.log.update({'errors': self.error_count})
 
     def start(self):
+        start_time = datetime.now()
         future = asyncio.Task(self.crawl())
         loop = asyncio.get_event_loop()
         loop.run_until_complete(future)
@@ -121,7 +135,7 @@ class ClassicProxy:
         self.crawled_urls += 1
         async with self.conn_limiter:
             try:
-                async with self.session.get(url, timeout=60) as response:
+                async with self.session.get(url, timeout=10) as response:
                     html = await response.read()
                     return html
             except Exception as e:
@@ -327,3 +341,60 @@ class CrawlerBase(ProxyClient, ABC):
         if sha is not None:
             self.release_proxy(sha)
         return proxy_data.get('sha')
+
+
+class Xroxy(BaseProxy):
+    name = 'Xroxy'
+
+    def __init__(self, provider_data, depth, max_conn=200, log=None):
+        BaseProxy.__init__(self, provider_data, depth, max_conn=max_conn, log=log)
+        self.base_url = self.base_url + "/"
+        self.links = set()
+
+    def process_data(self, html):
+        parser = self.parser_class()
+        proxies = parser.find_ips(html, netloc=self.netloc)
+        [self.proxy_list.add(proxy) for proxy in proxies]
+
+    def start(self):
+        try:
+            start_time = datetime.now()
+            ses = requests.session()
+            ses.headers = self.headers
+            resp = ses.get(self.start_url, timeout=10)
+            self.parsed_urls.add(self.start_url)
+            html = resp.content
+            self.process_data(html)
+
+            get_count = re.search(b'<small><b>(\d+)</b>\s*proxies\s*selected</small>', html, re.MULTILINE)
+            if get_count is not None:
+                total_proxies = int(get_count.group(1))
+                proxy_pages = list(range(total_proxies))
+                per_page = len(self.proxy_list)
+                total_proxies / len(self.proxy_list)
+                total_pages = [proxy_pages[i:i + per_page] for i in range(0, len(proxy_pages), per_page)]
+                link_base = 'https://www.xroxy.com/proxylist.php?pnum={}#table'
+                [self.links.add(link_base.format(page)) for page in list(range(len(total_pages)+1))]
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+                    future_to_company = {executor.submit(self.start_thread, record): record for record in self.links}
+                    for future in concurrent.futures.as_completed(future_to_company):
+                        url = future_to_company[future]
+                        try:
+                            data = future.result()
+                        except Exception as exc:
+                            # print('%r generated an exception: %s' % (url, exc))
+                            pass
+        except:
+            return list(self.proxy_list)
+        return list(self.proxy_list)
+
+    def start_thread(self, link):
+        ses = requests.session()
+        ses.headers = self.headers
+        resp = ses.get(link, timeout=10)
+        if link in self.parsed_urls:
+            return
+        self.parsed_urls.add(link)
+        html = resp.content
+        self.process_data(html)
