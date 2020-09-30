@@ -277,6 +277,8 @@ class ProxyServer(DbEngine, ABC):
                             # preparing data for check
                             ip, port = proxy
                             sha = hashlib.sha3_256(str(proxy).encode()).hexdigest()
+                            if len(str(ip)) > 64 or len(str(port)) > 5 :
+                                continue
                             packed = {'ip': ip, 'port': port, 'sha': sha, 'proxy_source': webpage}
 
                             # skipping any existing proxies that we have in database to speed up process
@@ -323,10 +325,10 @@ class ProxyServer(DbEngine, ABC):
             try:
                 # check new proxies and then check old proxies that were last checked 1h ago
                 now = datetime.today() - timedelta(hours=1)
-                sql_new = "select ip, port, sha from proxy_list where anonymity = 0 and proxy_source !=  'https://proxyscrape.com/premium'"
+                sql_new = "select ip, port, sha from proxy_list where anonymity = 0 and proxy_source !=  'https://proxyscrape.com/premium' and proxy_source !=  'https://luminati.io'"
                 sql_old = f'''select ip, port, sha from proxy_list where anonymity = 2
                           and (last_checked <= '{now.strftime("%Y-%m-%d %H:%M:%S")}' or last_checked is null) 
-                          and proxy_source !=  'https://proxyscrape.com/premium' '''
+                          and proxy_source !=  'https://proxyscrape.com/premium' and proxy_source !=  'https://luminati.io' '''
 
                 # lists = {'new_proxies': {'anonymity': 0}, 'old_proxies': {'last_checked': f"<={now}", 'anonymity': 2}}
                 lists = {'new_proxies': sql_new, 'old_proxies': sql_old}

@@ -141,7 +141,7 @@ class DbEngine:
         error = {"filename": filename, "method": method, "err_type": str(exc_type), 'err_line': str(lineno), 'err_desc': str(e)}
         logger.error(error)
 
-    def select(self, tablename, columns=None, filters=None, sql=None, schema=None, index=False, view=True, freeze=False, array=False):
+    def select(self, tablename, columns=None, filters=None, sql=None, schema=None, index=False, view=True, freeze=False, array=False, primary_key=None):
         """
         :param str tablename:
         :param list columns:
@@ -182,6 +182,7 @@ class DbEngine:
                             mapper(DbTable, table, primary_key=[table.c.ID])
                         except:
                             mapper(DbTable, table, primary_key=[table.c.id])
+
                     else:
                         mapper(DbTable, table)
 
@@ -203,7 +204,11 @@ class DbEngine:
                         results = session.query(DbTable).filter(and_(*filter_and).self_group(), or_(*[or_(g).self_group() for g in or_groups])).statement
                     else:
                         results = session.query(DbTable).statement
-                    db_df = pd.read_sql(results, engine, index_col=self.primary_key)
+
+                    if primary_key is not None:
+                        db_df = pd.read_sql(results, engine, index_col=primary_key)
+                    else:
+                        db_df = pd.read_sql(results, engine, index_col=self.primary_key)
                     session.commit()
                     session.flush()
                 else:
@@ -634,6 +639,7 @@ class DbEngine:
                         new_values.update({k: None})
                 if new_values:
                     values.update(new_values)
+
                 statement = table.update().values(values).where(eval(where))
                 engine.execute(statement)
                 return 200

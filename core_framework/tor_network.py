@@ -25,6 +25,7 @@ except:
     from settings import *
     from db_engine import DbEngine
 
+
 def install(install_path=tor_dir):
     """
     :param str install_path:
@@ -343,6 +344,7 @@ class TorBuild(DbEngine):
                 self.insert(tor_table_name, new_tor)
                 self.tors.update({control_port: new_tor})
                 return 200
+
             if re.search('No route to host', str(event)):
                 self.tor_remove(pid, data_dir, torrc_path)
                 return 402
