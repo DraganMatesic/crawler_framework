@@ -7,6 +7,7 @@ except:
     from db_engine import DbEngine
     from tables.tables import *
 
+
 def ora_trigger(trigger, table, sequence, when=1):
     whens = {1: 'before insert', 2: 'before update'}
     sql = f'''create TRIGGER {trigger}

@@ -301,10 +301,17 @@ class CrawlerBase(ProxyClient, ABC):
         elif self.proxy_type == 1:
             self.proxy_type = 2
 
-    def new_request(self, proc_id=1, sha=None, new=False, verify=True, protocols=None):
+    def new_request(self, proc_id=1, sha=None, new=False, verify=True, protocols=None, proxy_data=None):
         proxy_names = {1: 'tor', 2: 'public'}
         proxy_name = proxy_names.get(self.proxy_type)
-        proxy_data = self.get_proxy(proxy_type=proxy_name, protocols=protocols)
+
+        if proxy_data != None:
+            pass
+        else:
+            start_time = datetime.now()
+            proxy_data = self.get_proxy(proxy_type=proxy_name, protocols=protocols)
+            get_proxy_time = (datetime.now()-start_time).total_seconds()
+            # print("get proxy time", get_proxy_time)
 
         if not proxy_data:
             self.proxy_switch()

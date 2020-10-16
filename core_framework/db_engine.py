@@ -54,6 +54,7 @@ class DbEngine:
     def __init__(self, primary_key=None):
         self.db_type = None
         self.lib = None
+        self.error = None
         # cache if changes have been made to connection variables
         variables = [i for i in dir(self) if not i.__contains__('__') and type(self.__getattribute__(i)) is str]
         [setattr(self, variable, self.__getattribute__(variable)) for variable in variables]
@@ -136,9 +137,9 @@ class DbEngine:
             filter_data.append(and_clause)
         return filter_data
 
-    @staticmethod
-    def error_logger(filename, method, exc_type, lineno, e):
+    def error_logger(self, filename, method, exc_type, lineno, e):
         error = {"filename": filename, "method": method, "err_type": str(exc_type), 'err_line': str(lineno), 'err_desc': str(e)}
+        self.error = error
         logger.error(error)
 
     def select(self, tablename, columns=None, filters=None, sql=None, schema=None, index=False, view=True, freeze=False, array=False, primary_key=None):

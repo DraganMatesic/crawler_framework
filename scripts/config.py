@@ -30,6 +30,7 @@ def is_venv():
     return (hasattr(sys, 'real_prefix') or
             (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix))
 
+
 def version_control():
     py_versions = {}
     sys.stdout.write('\nSelect Python3 global version to use or specifiy path to virtualenv\n')

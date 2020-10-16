@@ -108,6 +108,7 @@ class Request:
         self.session()
         self.prepare_proxy()
         method = _request_types.get(self.request_type).get('Method')
+
         if args is not None:
             response = getattr(self, method)(args=args)
         else:
@@ -173,7 +174,14 @@ class Request:
             if self.request_type is 1:
                 return self.ses.get(self.url,timeout=self.timeout)
             if self.request_type is 2:
+                if args is not None:
+                    if type(args) is dict:
+                        args.update({'timeout': self.timeout})
+                    if 'proxies' not in args:
+                        args.update({'proxies': self.proxy})
+                    return self.ses.get(self.url, **args)
                 return self.ses.get(self.url, proxies=self.proxy, timeout=self.timeout)
+
         except Exception as e:
             return {'RequestError': "{}".format(str(e))}
 
@@ -190,7 +198,10 @@ class Request:
                 if args.get('data') is not None:
                     return self.ses.post(self.url, **args)
             if self.request_type is 4:
-                args.update({"proxies": self.proxy})
+                if type(args) is dict:
+                    args.update({'timeout': self.timeout})
+                if 'proxies' not in args:
+                    args.update({'proxies': self.proxy})
                 if args.get('data') is None:
                     return self.ses.post(self.url, self.payload, **args)
                 if args.get('data') is not None:
