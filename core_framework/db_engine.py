@@ -254,7 +254,7 @@ class DbEngine:
         data = ''.join(sorted(''.join(data).lower()))
         return data
 
-    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False, delete=False, freeze=False):
+    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False, delete=False, freeze=False, archive_col=None):
         """
         :param str tablename:
         :param dict data:
@@ -374,8 +374,12 @@ class DbEngine:
                     # if close id's is not empty
                     if close_ids:
                         if delete is False:
-                            session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
-                                .update({self.archive_date: datetime.now()}, synchronize_session='fetch')
+                            if archive_col is not None:
+                                session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
+                                    .update({archive_col: datetime.now()}, synchronize_session='fetch')
+                            else:
+                                session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
+                                    .update({self.archive_date: datetime.now()}, synchronize_session='fetch')
                         else:
                             session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
                                 .delete(synchronize_session='fetch')
