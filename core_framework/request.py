@@ -198,6 +198,8 @@ class Request:
                 if args.get('data') is not None:
                     return self.ses.post(self.url, **args)
             if self.request_type is 4:
+                # print("headers", self.ses.headers)
+                # print("cookie", self.ses.cookies)
                 if type(args) is dict:
                     args.update({'timeout': self.timeout})
                 if 'proxies' not in args:

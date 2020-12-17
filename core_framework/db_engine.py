@@ -116,6 +116,10 @@ class DbEngine:
     def and_connstruct(self, table, data):
         filter_data = []
         for attr, value in data.items():
+            try:
+                attr = attr.strip("*")
+            except:
+                pass
             if value is True:
                 and_clause = (and_(getattr(table, attr).isnot(None)))
             elif type(value) is list:
@@ -137,12 +141,12 @@ class DbEngine:
             filter_data.append(and_clause)
         return filter_data
 
-    def error_logger(self, filename, method, exc_type, lineno, e):
-        error = {"filename": filename, "method": method, "err_type": str(exc_type), 'err_line': str(lineno), 'err_desc': str(e)}
+    def error_logger(self, filename, method, exc_type, lineno, e, tablename=None, crawler=None, schema=None, c_line=None):
+        error = {"filename": filename, "method": method, "err_type": str(exc_type), 'err_line': str(lineno), 'err_desc': str(e), 'tablename': tablename, 'crawler': crawler, 'schema': schema, 'c_line':c_line}
         self.error = error
         logger.error(error)
 
-    def select(self, tablename, columns=None, filters=None, sql=None, schema=None, index=False, view=True, freeze=False, array=False, primary_key=None):
+    def select(self, tablename, columns=None, filters=None, sql=None, schema=None, index=False, view=True, freeze=False, array=False, primary_key=None, crawler=None, c_line=None):
         """
         :param str tablename:
         :param list columns:
@@ -236,7 +240,7 @@ class DbEngine:
                 print(traceback.extract_stack())
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 sleep(randrange(5, 20))
                 self.connect(self.conn_id, **self.kwargs)
                 continue
@@ -244,7 +248,7 @@ class DbEngine:
             except Exception as e:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 break
 
     @staticmethod
@@ -254,7 +258,7 @@ class DbEngine:
         data = ''.join(sorted(''.join(data).lower()))
         return data
 
-    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False, delete=False, freeze=False, archive_col=None):
+    def merge(self, tablename, data, filters, popkeys=None, schema=None, insert=True, update=True, on=False, delete=False, freeze=False, archive_col=None, crawler=None, c_line=None):
         """
         :param str tablename:
         :param dict data:
@@ -400,7 +404,7 @@ class DbEngine:
                 print("extract_stack", traceback.extract_stack())
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 sleep(randrange(5, 20))
                 # self.connect(connect_args={"application_name": "db_engine/merge/OperationalError"})
                 self.connect(self.conn_id, **self.kwargs)
@@ -410,10 +414,10 @@ class DbEngine:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
                 print("error in merge", str(e), exc_tb.tb_lineno)
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 return 400
 
-    def insert(self, tablename, data, primary_key=None, schema=None):
+    def insert(self, tablename, data, primary_key=None, schema=None, crawler=None, c_line=None):
         """
         Method is used for inserting records in specified table
         :param str tablename:
@@ -461,7 +465,7 @@ class DbEngine:
                 print(traceback.extract_stack())
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 sleep(randrange(5, 20))
                 # self.connect(connect_args={"application_name": "db_engine/insert/OperationalError"})
                 self.connect(self.conn_id, **self.kwargs)
@@ -470,10 +474,10 @@ class DbEngine:
             except Exception as e:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 break
 
-    def delete(self, tablename, filters=None, schema=None):
+    def delete(self, tablename, filters=None, schema=None, crawler=None, c_line=None):
         """
         deletes records from selected table.
         :param str tablename:
@@ -513,7 +517,7 @@ class DbEngine:
                 print(traceback.extract_stack())
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 sleep(randrange(5, 20))
                 # self.connect(connect_args={"application_name": "db_engine/delete/OperationalError"})
                 self.connect(self.conn_id, **self.kwargs)
@@ -522,10 +526,10 @@ class DbEngine:
             except Exception as e:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 break
 
-    def proc(self, procname, params=None, response=False, one=False):
+    def proc(self, procname, params=None, response=False, one=False, crawler=None, c_line=None):
         """
         calls procedure with return or without
         :param str procname:
@@ -572,7 +576,7 @@ class DbEngine:
                 print(traceback.extract_stack())
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=procname, crawler=crawler, c_line=c_line)
                 sleep(randrange(5, 20))
                 # self.connect(connect_args={"application_name": "db_engine/proc/OperationalError"})
                 self.connect(self.conn_id, **self.kwargs)
@@ -581,7 +585,7 @@ class DbEngine:
             except AttributeError as e:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=procname, crawler=crawler, c_line=c_line)
                 if str(e) == "'pyodbc.Cursor' object has no attribute 'callproc'":
                     raise NotImplemented("pyodbc does not support callproc create connection string using pymssql")
                 return 400
@@ -590,10 +594,10 @@ class DbEngine:
                 print(str(e))
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=procname, crawler=crawler, c_line=c_line)
                 return 400
 
-    def update(self, tablename, filters, values, schema=None, freeze=False, primary_key=None):
+    def update(self, tablename, filters, values, schema=None, freeze=False, primary_key=None, crawler=None, c_line=None):
         """
         :param str tablename:
         :param dict filters:
@@ -655,7 +659,7 @@ class DbEngine:
                 print(traceback.extract_stack())
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 sleep(randrange(5, 20))
                 # self.connect(connect_args={"application_name": "db_engine/update/OperationalError"})
                 self.connect(self.conn_id, **self.kwargs)
@@ -664,7 +668,7 @@ class DbEngine:
             except AttributeError as e:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
                 if str(e) == "'pyodbc.Cursor' object has no attribute 'callproc'":
                     raise NotImplemented("pyodbc does not support callproc create connection string using pymssql")
                 break
@@ -672,7 +676,7 @@ class DbEngine:
             except Exception as e:
                 error_info = traceback.extract_stack(limit=1)[0]
                 exc_type, exc_obj, exc_tb = sys.exc_info()
-                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e)
+                self.error_logger(error_info.filename, error_info.name, exc_type, exc_tb.tb_lineno, e, tablename=tablename, crawler=crawler, c_line=c_line)
 
     def log_processor(self):
         """When database connection is available this method
