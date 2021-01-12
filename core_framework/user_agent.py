@@ -11,18 +11,20 @@ except:
 
 
 def get():
+
     def crawl():
         try:
             ses = requests.session()
             r =ses.get('http://crodesigner.pythonanywhere.com/user/', timeout=10)
             firefox_ua = json.loads(r.content)
+            print(firefox_ua)
         except Exception as e:
             print(f"crawler_framework exception raised {str(e)}")
             return 500
-
         return firefox_ua
 
     if os.path.exists(ua_data):
+
         with open(ua_data, 'rb') as fr:
             data = pickle.load(fr)
             last_update = data.get('last_update')

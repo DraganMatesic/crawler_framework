@@ -377,16 +377,18 @@ class DbEngine:
 
                     # if close id's is not empty
                     if close_ids:
-                        if delete is False:
-                            if archive_col is not None:
-                                session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
-                                    .update({archive_col: datetime.now()}, synchronize_session='fetch')
+                        close_ids_ = [close_ids[i:i + 100] for i in range(0, len(close_ids), 100)]
+                        for close_ids in close_ids_:
+                            if delete is False:
+                                if archive_col is not None:
+                                    session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
+                                        .update({archive_col: datetime.now()}, synchronize_session='fetch')
+                                else:
+                                    session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
+                                        .update({self.archive_date: datetime.now()}, synchronize_session='fetch')
                             else:
                                 session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
-                                    .update({self.archive_date: datetime.now()}, synchronize_session='fetch')
-                        else:
-                            session.query(DbTable).filter(DbTable.__getattribute__(DbTable, self.primary_key).in_(close_ids))\
-                                .delete(synchronize_session='fetch')
+                                    .delete(synchronize_session='fetch')
 
                 # if there is no prexisting data in database then insert without comparing
                 elif insert is True:
