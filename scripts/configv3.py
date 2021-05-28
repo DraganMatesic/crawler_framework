@@ -515,7 +515,7 @@ class DatabaseConfiguration():
 
                 if data_check_bool is False:
                     if i == 4:
-                        sys.stdout("\nMax retries exceeded. Program exiting.")
+                        sys.stdout.write("\nMax retries exceeded. Program exiting.")
                         exit()
                     continue
                 break

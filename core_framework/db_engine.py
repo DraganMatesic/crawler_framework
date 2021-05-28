@@ -1,4 +1,5 @@
 import os
+import gc
 import sys
 import pyodbc
 import pickle
@@ -92,7 +93,7 @@ class DbEngine:
                 except:
                     self.engine = create_engine(connection_string, label_length=30, **kwargs)
             else:
-                self.engine = create_engine(connection_string, **kwargs)
+                self.engine = create_engine(connection_string, max_overflow=10, pool_size=20, **kwargs)
             try:
                 self.connection = self.engine.connect()
             except Exception as e:
@@ -104,7 +105,17 @@ class DbEngine:
             return self.engine
 
     def disconnect(self):
-        self.connection.close()
+        try:
+            self.connection.close()
+        except:
+            pass
+        try:
+            del self.engine
+            del self.connection
+        except:
+            pass
+        gc.collect()
+
 
     # Predefined methods that are are used in 99% cases while communicating with db
     @staticmethod

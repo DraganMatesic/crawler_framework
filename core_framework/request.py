@@ -171,9 +171,9 @@ class Request:
 
     def get(self, args=None):
         try:
-            if self.request_type is 1:
+            if self.request_type == 1:
                 return self.ses.get(self.url,timeout=self.timeout)
-            if self.request_type is 2:
+            if self.request_type == 2:
                 if args is not None:
                     if type(args) is dict:
                         args.update({'timeout': self.timeout})
@@ -192,12 +192,12 @@ class Request:
             args.update({"timeout": self.timeout})
             if self.args is not None:
                 args.update(self.args)
-            if self.request_type is 3:
+            if self.request_type == 3:
                 if args.get('data') is None:
                     return self.ses.post(self.url, self.payload, **args)
                 if args.get('data') is not None:
                     return self.ses.post(self.url, **args)
-            if self.request_type is 4:
+            if self.request_type == 4:
                 # print("headers", self.ses.headers)
                 # print("cookie", self.ses.cookies)
                 if type(args) is dict:
@@ -288,12 +288,12 @@ class AsyncRequest(Request):
             if args is None:
                 args = {}
             # GET method without proxy
-            if self.request_type is 1:
+            if self.request_type == 1:
                 async with self.async_ses.get(self.url, timeout=self.timeout) as response:
                     html = await response.read()
                     return html, response
             # GET method with proxy
-            if self.request_type is 2:
+            if self.request_type == 2:
                 if self.proxy_type == 1:
                     # Proxy type is Tor socks
                     async with self.async_ses.get(self.url, timeout=self.timeout, proxy_auth=None) as response:
@@ -321,7 +321,7 @@ class AsyncRequest(Request):
                 args.update(self.args)
 
             # POST without proxies
-            if self.request_type is 3:
+            if self.request_type == 3:
                 if args.get('data') is None:
                     async with self.async_ses.post(self.url, data=self.payload, timeout=self.timeout) as response:
                         html = await response.read()
@@ -332,7 +332,7 @@ class AsyncRequest(Request):
                         return html, response
 
             # POST with proxies
-            if self.request_type is 4:
+            if self.request_type == 4:
                 # if proxy is tor
                 if self.proxy_type == 1:
                     # if payload is not required
